@@ -1,24 +1,22 @@
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import org.apache.commons.fileupload.FileItemIterator;
-import org.apache.commons.fileupload.FileItemStream;
-import org.apache.commons.fileupload.FileUploadException;
-import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.json.JSONObject;
 
 import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 @WebServlet(name = "AlbumsServlet", value = "/albums")
+@MultipartConfig(fileSizeThreshold=1024*1024*10, 	// 10 MB
+        maxFileSize=1024*1024*50,      	// 50 MB
+        maxRequestSize=1024*1024*100)   	// 100 MB
 public class AlbumsServlet extends HttpServlet {
-
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
@@ -59,7 +57,7 @@ public class AlbumsServlet extends HttpServlet {
         String servletPath = req.getServletPath();
 
         // Check we have an empty url, the servlet path was called and that POST is multipart form
-        if (urlPath != null || !isUrlValid(servletPath) || !ServletFileUpload.isMultipartContent(req)) {
+        if (urlPath != null || !isUrlValid(servletPath)) {
             res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             res.getWriter().write("invalid request");
             return;
@@ -67,32 +65,24 @@ public class AlbumsServlet extends HttpServlet {
 
         JSONObject jsonObject = new JSONObject();
 
-        try {
-            ServletFileUpload upload = new ServletFileUpload();
-            FileItemIterator iterator = upload.getItemIterator(req);
-
-            while (iterator.hasNext()) {
-                FileItemStream item = iterator.next();
-
-                if (item.isFormField()) {
-                    System.out.println("This is an album property: " + item.getFieldName());
-                    continue;
-                }
-
-                try (InputStream inputStream = item.openStream()) {
-                    int imageSize = inputStream.readAllBytes().length;
-                    
-                    jsonObject.put("albumID", "id");
-                    jsonObject.put("imageSize", String.valueOf(imageSize));
-                    res.setStatus(HttpServletResponse.SC_OK);
-                    res.getWriter().write(jsonObject.toString());
-                } catch (IOException e) {
-                    System.out.println("error opening file steam");
-                }
+        for (Part part : req.getParts()) {
+            if (!Objects.equals(part.getName(), "image")) {
+                System.out.println("This is an album property: " + part.getName());
+                continue;
             }
-        } catch (FileUploadException e) {
-            System.out.println("error parsing multipart/form data");
-            throw new RuntimeException(e);
+
+            try (InputStream inputStream = part.getInputStream()) {
+                int imageSize = inputStream.readAllBytes().length;
+
+                jsonObject.put("albumID", "id");
+                jsonObject.put("imageSize", String.valueOf(imageSize));
+                res.setStatus(HttpServletResponse.SC_OK);
+                res.getWriter().write(jsonObject.toString());
+            } catch (IOException e) {
+                System.out.println("error opening file steam");
+                res.getWriter().write("error opening file steam");
+                return;
+            }
         }
     }
 
