@@ -1,8 +1,8 @@
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.json.JSONObject;
-
+import io.swagger.client.model.AlbumInfo;
 import io.swagger.client.model.ImageMetaData;
+
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
@@ -44,14 +44,15 @@ public class AlbumsServlet extends HttpServlet {
         String albumId = urlPath.split("/")[1];
 
         // Check collection to get album from album id
-        if (!albumId.isEmpty()) {
-            res.setStatus(HttpServletResponse.SC_OK);
-            JSONObject jsonObject = new JSONObject().put("artist", "Sex Pistols").put("title", "Never Mind The Bollocks").put("year", "1997");
-            res.getWriter().write(jsonObject.toString());
-        } else {
+        if (albumId.isEmpty()) {
             res.setStatus(HttpServletResponse.SC_NOT_FOUND);
             res.getWriter().write("Key not found");
+            return;
         }
+
+        res.setStatus(HttpServletResponse.SC_OK);
+        String json = gson.toJson(new AlbumInfo().artist("Sex Pistols").title("Never Mind The Bollocks").year("1997"));
+        res.getWriter().write(json);
     }
 
     @Override
@@ -80,19 +81,13 @@ public class AlbumsServlet extends HttpServlet {
 //        String year = req.getPart("year").toString();
 //        String artist = req.getPart("artist").toString();
 
-        JSONObject jsonObject = new JSONObject();
-
         // Get information from image part
         try (InputStream inputStream = image.getInputStream()) {
-            int imageSize = inputStream.readAllBytes().length;
-            ImageMetaData imageMetaData = new ImageMetaData();
-//            imageMetaData.se
-
-            jsonObject.put("albumID", "id");
-            jsonObject.put("imageSize", String.valueOf(imageSize));
-
             res.setStatus(HttpServletResponse.SC_OK);
-            res.getWriter().write(jsonObject.toString());
+
+            int imageSize = inputStream.readAllBytes().length;
+            String json = gson.toJson(new ImageMetaData().albumID("id").imageSize(String.valueOf(imageSize)));
+            res.getWriter().write(json);
         } catch (IOException e) {
             log("Error processing image", e);
             res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

@@ -19,6 +19,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import static java.lang.Thread.sleep;
 
 public class AlbumClient {
+
+    protected static final AtomicInteger SUCCESSFUL_REQ = new AtomicInteger(0);
+    protected static final AtomicInteger FAILED_REQ = new AtomicInteger(0);
+    protected static final AtomicLong TIME_EACH_REQUEST = new AtomicLong(0);
+    protected static CountDownLatch totalThreadsLatch;
+
     private final int INITIAL_THREAD_COUNT = 10;
     private final int INITIAL_CALLS_PER_THREAD = 100;
     public AlbumClient() {}
@@ -33,14 +39,13 @@ public class AlbumClient {
 
         // Define initial arguments
         int threadGroupSize = 10;
-        int callsPerThread = 1000;
+        int callsPerThread = 100;
         int numThreadGroups = 10;
         long delay = 2;
-        String serverURL = "http://ec2-54-148-210-109.us-west-2.compute.amazonaws.com:8080/Server_Web/";
+        String serverURL = "http://ec2-54-245-221-2.us-west-2.compute.amazonaws.com:8080/Server_Web/";
         ApiClient apiClient = new ApiClient().setBasePath(serverURL);
         AlbumClient albumClient = new AlbumClient();
 
-        AtomicLong atomicLong = new AtomicLong(0);
 //        long timeTaken = 0;
 //        long start;
 //        long end;
@@ -64,10 +69,8 @@ public class AlbumClient {
 
 //        // Totals calls made to post and get
         int totalCalls = numThreadGroups * threadGroupSize * callsPerThread * 2;
-        AtomicInteger successfulGet = new AtomicInteger(0);
-        AtomicInteger successfulPost = new AtomicInteger(0);
 
-        CountDownLatch totalCallsLatch = new CountDownLatch(totalCalls);
+        totalThreadsLatch = new CountDownLatch(threadGroupSize * numThreadGroups);
         ExecutorService service = Executors.newFixedThreadPool(threadGroupSize);
 //        BlockingQueue<String> dataBuffer = new LinkedBlockingQueue<>();
 
@@ -79,86 +82,65 @@ public class AlbumClient {
         System.out.println("initialization:" + (end - start));
 
         start = System.currentTimeMillis();
-        executeThreadGroups(numThreadGroups, threadGroupSize, callsPerThread, albumClient, service, apiClient, successfulPost, totalCallsLatch, successfulGet, delay, atomicLong);
-//
-//         Shutdown the executor and wait for all tasks to complete
-        service.shutdown();
-        totalCallsLatch.await();
-        System.out.println("avg time each req: " + (atomicLong.get() / totalCalls));
-        System.out.println("Successful Gets: " + successfulGet);
-        System.out.println("Successful Posts: " + successfulPost);
-
-        end = System.currentTimeMillis();
-        System.out.println((end - start) * .001);
-    }
-
-    /**
-     * Method that runs creates each thread group and calls methods to execute the treads in each group.
-     * @param numThreadGroups - The number of thread groups to create and execute.
-     * @param threadGroupSize - The number of threads in each thread group.
-     * @param callsPerThread - The number of requests each thread should make.
-     * @param albumClient - An instance of AlbumClient to call its methods.
-     * @param service - An ExecutorService thread pool with the number of threads in each group.
-     * @param apiClient - The api client instance used to create an HTTP client for later requests.
-     * @param successfulPost - An atomic integer tracking the number of successful POST requests.
-     * @param totalCallsLatch - A countdown latch tracking the number of requests made.
-     * @param successfulGet - An atomic integer tracking the number of successful GET requests.
-     * @param delay - The amount of time to delay between thread groups.
-     * @throws InterruptedException - Thrown if thread is interrupted while busy.
-     */
-    private static void executeThreadGroups(int numThreadGroups, int threadGroupSize, int callsPerThread, AlbumClient albumClient, ExecutorService service, ApiClient apiClient, AtomicInteger successfulPost, CountDownLatch totalCallsLatch, AtomicInteger successfulGet, long delay, AtomicLong atomicLong) throws InterruptedException {
+//        executeThreadGroups(numThreadGroups, threadGroupSize, delay, serverURL, callsPerThread, service);
         for (int i = 0; i < numThreadGroups; i++) {
-            albumClient.executeThreadGroup(threadGroupSize, service, apiClient, callsPerThread, successfulPost, totalCallsLatch, successfulGet, atomicLong);
-
+            for (int j = 0; j < threadGroupSize; j++) {
+                service.execute(new AlbumThreadRunnable(callsPerThread, serverURL));
+            }
             // Sleep for delay amount of time, converted to seconds
             sleep(delay * 1000);
         }
+
+//         Shutdown the executor and wait for all tasks to complete
+        totalThreadsLatch.await();
+        service.shutdown();
+        end = System.currentTimeMillis();
+
+        System.out.println("Successful req: " + SUCCESSFUL_REQ);
+        System.out.println("Failed req: " + FAILED_REQ);
+        long avgTimeRequest = (TIME_EACH_REQUEST.get() / totalCalls);
+
+        System.out.println("Avg time each request: " + avgTimeRequest + "ms");
+        System.out.println("Throughput: " + threadGroupSize / (avgTimeRequest * 0.001) + " threads per second");
+        System.out.println("Wall time: " + (end - start) * .001 + " s");
+
     }
 
-    /**
-     * Method to execute a single thread group, creating threadGroupSize amount of threads that each call a number of
-     * requests.
-     *
-     * @param threadGroupSize - - The number of threads in the thread group.
-     * @param service - An ExecutorService thread pool with the number of threads in each group.
-     * @param apiClient - The api client instance used to create an HTTP client for later requests.
-     * @param callsPerThread - The number of requests each thread should make.
-//     * @param callsPerGroupLatch - The number of calls a group should make.
-     * @param successfulPost - An atomic integer tracking the number of successful POST requests.
-     * @param totalCallsLatch - A countdown latch tracking the number of requests made.
-     * @param successfulGet - An atomic integer tracking the number of successful GET requests.
-     */
-    private void executeThreadGroup(int threadGroupSize, ExecutorService service, ApiClient apiClient, int callsPerThread, AtomicInteger successfulPost, CountDownLatch totalCallsLatch, AtomicInteger successfulGet, AtomicLong atomicLong) {
-        for (int j = 0; j < threadGroupSize; j++) {
-            service.execute(() -> {
-                try {
-                    long start;
-                    long end;
-                    DefaultApi defaultApi = new DefaultApi(apiClient);
+//    /**
+//     * Method that runs creates each thread group and calls methods to execute the treads in each group.
+//     * @param numThreadGroups - The number of thread groups to create and execute.
+//     * @param threadGroupSize - The number of threads in each thread group.
+//     * @param callsPerThread - The number of requests each thread should make.
+//     * @param service - An ExecutorService thread pool with the number of threads in each group.
+//     * @param delay - The amount of time to delay between thread groups.
+//     * @throws InterruptedException - Thrown if thread is interrupted while busy.
+//     */
+//    private static void executeThreadGroups(int numThreadGroups, int threadGroupSize, long delay, String serverUrl, int callsPerThread, ExecutorService service) throws InterruptedException {
+//        for (int i = 0; i < numThreadGroups; i++) {
+//            for (int j = 0; j < threadGroupSize; j++) {
+//                service.execute(new AlbumThreadRunnable(callsPerThread, serverUrl));
+//            }
+//            // Sleep for delay amount of time, converted to seconds
+//            sleep(delay * 1000);
+//        }
+//    }
 
-                    // Perform 1000 POST requests
-                    for (int k = 0; k < callsPerThread; k++) {
-                        start = System.currentTimeMillis();
-                        makeApiRequest("POST", defaultApi, successfulPost);
-                        end = System.currentTimeMillis();
-                        atomicLong.addAndGet(end - start);
-                        totalCallsLatch.countDown();
-                    }
-
-                    // Perform 1000 GET requests
-                    for (int k = 0; k < callsPerThread; k++) {
-                        start = System.currentTimeMillis();
-                        makeApiRequest("GET", defaultApi, successfulGet);
-                        end = System.currentTimeMillis();
-                        atomicLong.addAndGet(end - start);
-                        totalCallsLatch.countDown();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            });
-        }
-    }
+//    /**
+//     * Method to execute a single thread group, creating threadGroupSize amount of threads that each call a number of
+//     * requests.
+//     *
+//     * @param threadGroupSize - - The number of threads in the thread group.
+//     * @param service - An ExecutorService thread pool with the number of threads in each group.
+////     * @param apiClient - The api client instance used to create an HTTP client for later requests.
+//     * @param callsPerThread - The number of requests each thread should make.
+//     * @param successfulPost - An atomic integer tracking the number of successful POST requests.
+//     * @param successfulGet - An atomic integer tracking the number of successful GET requests.
+//     */
+//    private void executeThreadGroup(int threadGroupSize, ExecutorService service, String serverUrl, int callsPerThread, AtomicInteger successfulPost, AtomicInteger successfulGet, AtomicLong atomicLong) {
+//        for (int j = 0; j < threadGroupSize; j++) {
+//            service.execute(new AlbumThreadRunnable(callsPerThread, serverUrl));
+//        }
+//    }
 
     /**
      * Method to create the initial threads prior to loading the server.
