@@ -12,14 +12,17 @@ import java.io.File;
 public class AlbumThreadRunnable implements Runnable {
     private final int numReqs;
     private final String serverUrl;
-
-    private static int successfulReq = 0;
-    private static int failedReq = 0;
+    private int successfulReq;
+    private int failedReq;
+    private long timeEachReq;
 
 
     public AlbumThreadRunnable(int numReqs, String serverUrl) {
         this.numReqs = numReqs;
         this.serverUrl = serverUrl;
+        this.successfulReq = 0;
+        this.failedReq = 0;
+        this.timeEachReq = 0;
     }
 
     @Override
@@ -35,7 +38,7 @@ public class AlbumThreadRunnable implements Runnable {
             start = System.currentTimeMillis();
             makeApiRequest("POST", albumsApi);
             end = System.currentTimeMillis();
-            timeEachReq += (end - start);
+            this.timeEachReq += (end - start);
         }
 
         // Perform 1000 GET requests
@@ -43,13 +46,13 @@ public class AlbumThreadRunnable implements Runnable {
             start = System.currentTimeMillis();
             makeApiRequest("GET", albumsApi);
             end = System.currentTimeMillis();
-            timeEachReq += (end - start);
+            this.timeEachReq += (end - start);
         }
 
         // Bulk update variables that are tracked
-        AlbumClient.SUCCESSFUL_REQ.addAndGet(successfulReq);
-        AlbumClient.FAILED_REQ.addAndGet(failedReq);
-        AlbumClient.TIME_EACH_REQUEST.addAndGet(timeEachReq);
+        AlbumClient.SUCCESSFUL_REQ.addAndGet(this.successfulReq);
+        AlbumClient.FAILED_REQ.addAndGet(this.failedReq);
+        AlbumClient.TIME_EACH_REQUEST.addAndGet(this.timeEachReq);
         AlbumClient.totalThreadsLatch.countDown();
     }
 
@@ -70,12 +73,12 @@ public class AlbumThreadRunnable implements Runnable {
                 response = isGetReq ? getAlbum(albumsApi) : postAlbum(albumsApi);
 
                 if (response.getStatusCode() == 200) {
-                    successfulReq += 1;
+                    this.successfulReq += 1;
                     return;
                 }
                 attempts++;
             }
-            failedReq += 1;
+            this.failedReq += 1;
         } catch (ApiException e) {
             System.err.printf("Exception when calling DefaultApi %s%n", albumRequest);
             e.printStackTrace();
