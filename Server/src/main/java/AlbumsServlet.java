@@ -1,5 +1,8 @@
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.json.JSONObject;
 
+import io.swagger.client.model.ImageMetaData;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
@@ -9,18 +12,19 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Objects;
 import java.util.regex.Pattern;
 
 @WebServlet(name = "AlbumsServlet", value = "/albums")
-@MultipartConfig(fileSizeThreshold=1024*1024*10, 	// 10 MB
-        maxFileSize=1024*1024*50,      	// 50 MB
-        maxRequestSize=1024*1024*100)   	// 100 MB
+@MultipartConfig(fileSizeThreshold = 1024 * 1024 * 10,    // 10 MB
+        maxFileSize = 1024 * 1024 * 50,        // 50 MB
+        maxRequestSize = 1024 * 1024 * 100)    // 100 MB
 public class AlbumsServlet extends HttpServlet {
+
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
-        res.setContentType("text/plain");
+        res.setContentType("application/json");
         String urlPath = req.getPathInfo();
 
         // Check we have url
@@ -39,6 +43,7 @@ public class AlbumsServlet extends HttpServlet {
 
         String albumId = urlPath.split("/")[1];
 
+        // Check collection to get album from album id
         if (!albumId.isEmpty()) {
             res.setStatus(HttpServletResponse.SC_OK);
             JSONObject jsonObject = new JSONObject().put("artist", "Sex Pistols").put("title", "Never Mind The Bollocks").put("year", "1997");
@@ -63,31 +68,51 @@ public class AlbumsServlet extends HttpServlet {
             return;
         }
 
+        // Check we have a valid image part
+        Part image = req.getPart("image");
+        if (image == null || !isImageContentType(image.getContentType())) {
+            res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            res.getWriter().write("Invalid or missing image part");
+            return;
+        }
+
+//        String title = req.getPart("title").toString();
+//        String year = req.getPart("year").toString();
+//        String artist = req.getPart("artist").toString();
+
         JSONObject jsonObject = new JSONObject();
 
-        for (Part part : req.getParts()) {
-            if (!Objects.equals(part.getName(), "image")) {
-                System.out.println("This is an album property: " + part.getName());
-                continue;
-            }
+        // Get information from image part
+        try (InputStream inputStream = image.getInputStream()) {
+            int imageSize = inputStream.readAllBytes().length;
+            ImageMetaData imageMetaData = new ImageMetaData();
+//            imageMetaData.se
 
-            try (InputStream inputStream = part.getInputStream()) {
-                int imageSize = inputStream.readAllBytes().length;
+            jsonObject.put("albumID", "id");
+            jsonObject.put("imageSize", String.valueOf(imageSize));
 
-                jsonObject.put("albumID", "id");
-                jsonObject.put("imageSize", String.valueOf(imageSize));
-                res.setStatus(HttpServletResponse.SC_OK);
-                res.getWriter().write(jsonObject.toString());
-            } catch (IOException e) {
-                System.out.println("error opening file steam");
-                res.getWriter().write("error opening file steam");
-                return;
-            }
+            res.setStatus(HttpServletResponse.SC_OK);
+            res.getWriter().write(jsonObject.toString());
+        } catch (IOException e) {
+            log("Error processing image", e);
+            res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            res.getWriter().write("error opening file steam");
         }
     }
 
     /**
+     * Method to check an image file was sent in POST request.
+     *
+     * @param contentType - The content type of the form part. Must be an image.
+     * @return - True if the content type is not empty and an image, false otherwise.
+     */
+    private boolean isImageContentType(String contentType) {
+        return contentType != null && contentType.startsWith("image/");
+    }
+
+    /**
      * Method to return whether the path provided is an expected endpoint.
+     *
      * @param urlPath - The current endpoint being evaluated.
      * @return true if the url is a valid endpoint, false otherwise.
      */
@@ -108,7 +133,7 @@ public class AlbumsServlet extends HttpServlet {
      */
     private enum Endpoint {
         POST_NEW_ALBUM(Pattern.compile("/albums")),
-        GET_ALBUM_BY_KEY(Pattern.compile("^/\\d+$"));
+        GET_ALBUM_BY_KEY(Pattern.compile("^/\\d+$")); // Atm expects an int ID, will change in later assignments
 
         public final Pattern pattern;
 
