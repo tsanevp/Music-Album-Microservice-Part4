@@ -80,23 +80,23 @@ public class AlbumThreadRunnable implements Runnable {
                     this.successfulReq += 1;
                     return;
                 }
-
-                threadSleep(attempts++);
             } catch (ApiException e) {
-                threadSleep(attempts++);
+                e.printStackTrace();
             }
+            attempts++;
+//            threadSleep(attempts++);
         }
 
         this.failedReq += 1;
     }
 
-    private void threadSleep(int attempts) {
-        try {
-            sleep(2 ^ attempts);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
+//    private void threadSleep(int attempts) {
+//        try {
+//            sleep(2 ^ attempts);
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
 
     /**
      * Method to make a GET Album request to the given api instance.
@@ -118,7 +118,7 @@ public class AlbumThreadRunnable implements Runnable {
      * @throws ApiException - If fails to call the API, e.g. server error or cannot deserialize the response body.
      */
     private synchronized ApiResponse<ImageMetaData> postAlbum(DefaultApi albumsApi) throws ApiException {
-        File image = new File("C:\\Users\\Peter\\Northeastern\\CS6650\\CS6650-Assignment1\\Client\\testingImage.png");
+        File image = new File("src/main/java/testingImage.png");
         AlbumsProfile profile = new AlbumsProfile();
         return albumsApi.newAlbumWithHttpInfo(image, profile);
     }

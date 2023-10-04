@@ -38,8 +38,8 @@ public class AlbumClient {
         int threadGroupSize = 10;
         int numThreadGroups = 10;
         long delay = 2;
-        String serverURL = "http://ec2-54-245-221-2.us-west-2.compute.amazonaws.com:8080/Server_Web/";
-
+        String serverURL = "http://ec2-54-245-174-233.us-west-2.compute.amazonaws.com:8080/Server_Web/";
+//        String serverURL = "http://ec2-54-245-174-233.us-west-2.compute.amazonaws.com:8080/go/";
         int callsPerThread = 1000;
         int maxThreads = threadGroupSize * numThreadGroups;
         int totalCalls = numThreadGroups * threadGroupSize * callsPerThread * 2;
@@ -56,7 +56,10 @@ public class AlbumClient {
 
         totalThreadsLatch.await();
         long end = System.currentTimeMillis();
-        printResults(INITIAL_THREAD_COUNT * INITIAL_CALLS_PER_THREAD * 2, INITIAL_THREAD_COUNT, end, start);
+
+        CountDownLatch tempLatch = new CountDownLatch(1);
+        printResults("Loading Initialization", INITIAL_THREAD_COUNT * INITIAL_CALLS_PER_THREAD * 2, INITIAL_THREAD_COUNT, end, start, tempLatch);
+        tempLatch.await();
 
         // Redefining variables for loading the server
         totalThreadsLatch = new CountDownLatch(numThreadGroups * threadGroupSize);
@@ -79,7 +82,7 @@ public class AlbumClient {
         service.shutdown();
         end = System.currentTimeMillis();
 
-        printResults(totalCalls, maxThreads, end, start);
+        printResults("Loading Server", totalCalls, maxThreads, end, start, new CountDownLatch(0));
     }
 
     /**
@@ -90,7 +93,7 @@ public class AlbumClient {
      * @param end        - The end time of the current phase.
      * @param start      - The start time of the current phase.
      */
-    private static void printResults(int totalCalls, int maxThreads, long end, long start) {
+    protected static void printResults(String currentPhase, int totalCalls, int maxThreads, long end, long start, CountDownLatch tempLatch) throws InterruptedException {
         System.out.println("Successful req: " + SUCCESSFUL_REQ);
         System.out.println("Failed req: " + FAILED_REQ);
         long avgTimeRequest = (TIME_EACH_REQUEST.get() / totalCalls);
@@ -98,5 +101,8 @@ public class AlbumClient {
         System.out.println("Avg time each request: " + avgTimeRequest + "ms");
         System.out.println("Throughput: " + maxThreads / (avgTimeRequest * 0.001) + " threads per second");
         System.out.println("Wall time: " + (end - start) * .001 + " s");
+
+        new WriteToCsv(currentPhase, maxThreads, totalCalls, SUCCESSFUL_REQ.get(), FAILED_REQ.get(), avgTimeRequest, maxThreads / (avgTimeRequest * 0.001), (end - start) * .001).writeTestResults();
+        tempLatch.countDown();
     }
 }
