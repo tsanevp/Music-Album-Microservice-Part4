@@ -1,18 +1,10 @@
 package Part1;
 
-import Part1.Model.Album;
-import io.swagger.client.ApiClient;
 import io.swagger.client.ApiException;
-import io.swagger.client.ApiResponse;
-import io.swagger.client.api.DefaultApi;
-import io.swagger.client.model.AlbumInfo;
-import io.swagger.client.model.AlbumsBody;
-import io.swagger.client.model.AlbumsProfile;
-import io.swagger.client.model.ImageMetaData;
 
-import javax.sound.midi.SysexMessage;
-import java.io.File;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -28,7 +20,9 @@ public class AlbumClient {
 
     private static final int INITIAL_THREAD_COUNT = 10;
     private static final int INITIAL_CALLS_PER_THREAD = 100;
-    public AlbumClient() {}
+
+    public AlbumClient() {
+    }
 
     public static void main(String[] args) throws InterruptedException, ApiException {
 //        int callsPerThread = 1000;
@@ -47,11 +41,11 @@ public class AlbumClient {
         String serverURL = "http://ec2-54-245-221-2.us-west-2.compute.amazonaws.com:8080/Server_Web/";
 
         int callsPerThread = 1000;
-        int totalThreads = threadGroupSize * numThreadGroups;
+        int maxThreads = threadGroupSize * numThreadGroups;
         int totalCalls = numThreadGroups * threadGroupSize * callsPerThread * 2;
 
         // Initialize Executor service
-        ExecutorService service = Executors.newFixedThreadPool(totalThreads);
+        ExecutorService service = Executors.newFixedThreadPool(maxThreads);
         totalThreadsLatch = new CountDownLatch(threadGroupSize);
 
         // Initialize threads
@@ -85,24 +79,24 @@ public class AlbumClient {
         service.shutdown();
         end = System.currentTimeMillis();
 
-        printResults(totalCalls, threadGroupSize, end, start);
+        printResults(totalCalls, maxThreads, end, start);
     }
 
     /**
      * Simple method to print the results of the initialization phase and loading phase to the CL.
      *
      * @param totalCalls - The total requests made to the api.
-     * @param threadGroupSize - The size of each thread group.
-     * @param end - The end time of the current phase.
-     * @param start - The start time of the current phase.
+     * @param maxThreads - The maximum amount of threads that could be running at once.
+     * @param end        - The end time of the current phase.
+     * @param start      - The start time of the current phase.
      */
-    private static void printResults(int totalCalls, int threadGroupSize, long end, long start) {
+    private static void printResults(int totalCalls, int maxThreads, long end, long start) {
         System.out.println("Successful req: " + SUCCESSFUL_REQ);
         System.out.println("Failed req: " + FAILED_REQ);
         long avgTimeRequest = (TIME_EACH_REQUEST.get() / totalCalls);
 
         System.out.println("Avg time each request: " + avgTimeRequest + "ms");
-        System.out.println("Throughput: " + threadGroupSize / (avgTimeRequest * 0.001) + " threads per second");
+        System.out.println("Throughput: " + maxThreads / (avgTimeRequest * 0.001) + " threads per second");
         System.out.println("Wall time: " + (end - start) * .001 + " s");
     }
 }

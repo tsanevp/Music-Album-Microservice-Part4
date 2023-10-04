@@ -9,12 +9,16 @@ import io.swagger.client.model.ImageMetaData;
 
 import java.io.File;
 
+import static java.lang.Thread.sleep;
+
 public class AlbumThreadRunnable implements Runnable {
     private final int numReqs;
     private final String serverUrl;
     private int successfulReq;
     private int failedReq;
     private long timeEachReq;
+
+    private final int MAX_ATTEMPTS = 5;
 
 
     public AlbumThreadRunnable(int numReqs, String serverUrl) {
@@ -68,20 +72,29 @@ public class AlbumThreadRunnable implements Runnable {
         int attempts = 0;
         boolean isGetReq = albumRequest.equals("GET");
 
-        try {
-            while (attempts != 5) {
+        while (attempts < MAX_ATTEMPTS) {
+            try {
                 response = isGetReq ? getAlbum(albumsApi) : postAlbum(albumsApi);
 
                 if (response.getStatusCode() == 200) {
                     this.successfulReq += 1;
                     return;
                 }
-                attempts++;
+
+                threadSleep(attempts++);
+            } catch (ApiException e) {
+                threadSleep(attempts++);
             }
-            this.failedReq += 1;
-        } catch (ApiException e) {
-            System.err.printf("Exception when calling DefaultApi %s%n", albumRequest);
-            e.printStackTrace();
+        }
+
+        this.failedReq += 1;
+    }
+
+    private void threadSleep(int attempts) {
+        try {
+            sleep(2 ^ attempts);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -92,7 +105,7 @@ public class AlbumThreadRunnable implements Runnable {
      * @return - The response of the api call.
      * @throws ApiException - If fails to call the API, e.g. server error or cannot deserialize the response body.
      */
-    private ApiResponse<AlbumInfo> getAlbum(DefaultApi albumsApi) throws ApiException {
+    private synchronized ApiResponse<AlbumInfo> getAlbum(DefaultApi albumsApi) throws ApiException {
         String albumID = "3"; // String | path  parameter is album key to retrieve
         return albumsApi.getAlbumByKeyWithHttpInfo(albumID);
     }
@@ -104,7 +117,7 @@ public class AlbumThreadRunnable implements Runnable {
      * @return - The response of the api call.
      * @throws ApiException - If fails to call the API, e.g. server error or cannot deserialize the response body.
      */
-    private ApiResponse<ImageMetaData> postAlbum(DefaultApi albumsApi) throws ApiException {
+    private synchronized ApiResponse<ImageMetaData> postAlbum(DefaultApi albumsApi) throws ApiException {
         File image = new File("C:\\Users\\Peter\\Northeastern\\CS6650\\CS6650-Assignment1\\Client\\testingImage.png");
         AlbumsProfile profile = new AlbumsProfile();
         return albumsApi.newAlbumWithHttpInfo(image, profile);
