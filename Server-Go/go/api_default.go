@@ -39,14 +39,13 @@ func GetAlbumByKey(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		w.WriteHeader(http.StatusOK)
 		_, writeErr := w.Write(responseJSON)
 
 		if writeErr != nil {
 			http.Error(w, serverError, http.StatusInternalServerError)
 			return
 		}
-
-		w.WriteHeader(http.StatusOK)
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 		_, keyErr := w.Write([]byte("Key not found"))
@@ -68,13 +67,14 @@ func NewAlbum(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	artist := r.FormValue("artist")
-	title := r.FormValue("title")
-	year := r.FormValue("year")
+	// artist := r.FormValue("artist")
+	// title := r.FormValue("title")
+	// year := r.FormValue("year")
 
 	image, handler, err := r.FormFile("image")
 
-	if err != nil || artist == "" || title == "" || year == "" {
+	// if err != nil || artist == "" || title == "" || year == "" {
+	if err != nil {
 		http.Error(w, "Unable to get image or form fields", http.StatusBadRequest)
 		return
 	}
@@ -90,14 +90,13 @@ func NewAlbum(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	_, writeErr := w.Write(responseJSON)
 
 	if writeErr != nil {
 		http.Error(w, serverError, http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func ValidUrl(url string) bool {

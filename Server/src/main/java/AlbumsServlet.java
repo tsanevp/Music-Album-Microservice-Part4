@@ -11,7 +11,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.regex.Pattern;
 
 @WebServlet(name = "AlbumsServlet", value = "/albums")
@@ -19,7 +18,6 @@ import java.util.regex.Pattern;
         maxFileSize = 1024 * 1024 * 50,        // 50 MB
         maxRequestSize = 1024 * 1024 * 100)    // 100 MB
 public class AlbumsServlet extends HttpServlet {
-
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     @Override
@@ -71,28 +69,23 @@ public class AlbumsServlet extends HttpServlet {
 
         // Check we have a valid image part
         Part image = req.getPart("image");
-        if (image == null || !isImageContentType(image.getContentType())) {
-            res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            res.getWriter().write("Invalid or missing image part");
-            return;
-        }
+//        if (image == null || !isImageContentType(image.getContentType())) {
+//            res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+//            res.getWriter().write("Invalid or missing image part");
+//            return;
+//        }
 
 //        String title = req.getPart("title").toString();
 //        String year = req.getPart("year").toString();
 //        String artist = req.getPart("artist").toString();
 
         // Get information from image part
-        try (InputStream inputStream = image.getInputStream()) {
-            res.setStatus(HttpServletResponse.SC_OK);
+        long imageSize = image.getSize();
+        res.setStatus(HttpServletResponse.SC_OK);
 
-            int imageSize = inputStream.readAllBytes().length;
-            String json = gson.toJson(new ImageMetaData().albumID("id").imageSize(String.valueOf(imageSize)));
-            res.getWriter().write(json);
-        } catch (IOException e) {
-            log("Error processing image", e);
-            res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            res.getWriter().write("error opening file steam");
-        }
+        String json = gson.toJson(new ImageMetaData().albumID("id").imageSize(String.valueOf(imageSize)));
+        res.getWriter().write(json);
+
     }
 
     /**
@@ -112,23 +105,23 @@ public class AlbumsServlet extends HttpServlet {
      * @return true if the url is a valid endpoint, false otherwise.
      */
     private boolean isUrlValid(String urlPath) {
-        for (Endpoint endpoint : Endpoint.values()) {
-            Pattern pattern = endpoint.pattern;
-
-            if (pattern.matcher(urlPath).matches()) {
-                return true;
-            }
-        }
-
-        return false;
+//        for (Endpoint endpoint : Endpoint.values()) {
+//            Pattern pattern = endpoint.pattern;
+//
+//            if (pattern.matcher(urlPath).matches()) {
+//                return true;
+//            }
+//        }
+//
+//        return false;
+        return Pattern.compile("/albums").matcher(urlPath).matches() || Pattern.compile("^/\\d+$").matcher(urlPath).matches();
     }
 
     /**
      * Enum constants that represent different possible endpoints
      */
     private enum Endpoint {
-        POST_NEW_ALBUM(Pattern.compile("/albums")),
-        GET_ALBUM_BY_KEY(Pattern.compile("^/\\d+$")); // Atm expects an int ID, will change in later assignments
+        POST_NEW_ALBUM(Pattern.compile("/albums")), GET_ALBUM_BY_KEY(Pattern.compile("^/\\d+$")); // Atm expects an int ID, will change in later assignments
 
         public final Pattern pattern;
 
