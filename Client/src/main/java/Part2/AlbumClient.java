@@ -1,8 +1,7 @@
-package Part1;
+package Part2;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.ArrayList;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -19,26 +18,36 @@ public class AlbumClient {
     private static final int INITIAL_THREAD_COUNT = 10;
     private static final int INITIAL_CALLS_PER_THREAD = 100;
 
+    protected static BlockingQueue<ArrayList<String>> resultsBuffer = new LinkedBlockingQueue<>();
+
     public AlbumClient() {
     }
 
     public static void main(String[] args) throws InterruptedException {
+//        int callsPerThread = 1000;
+//
+//        int threadGroupSize = Integer.parseInt(args[0]);
+//        int numThreadGroups = Integer.parseInt(args[1]);
+//        long delay = Integer.parseInt(args[2]);
+//        String serverURL = String.valueOf(Integer.parseInt(args[3]));
+
+        // Define initial arguments
+
         // Define starting constants
         int threadGroupSize = 10;
         int numThreadGroups = 10;
         long delay = 2;
         String serverURL = "http://ec2-34-221-94-160.us-west-2.compute.amazonaws.com:8080/Server_Web";
 //        String serverURL = "http://ec2-34-221-94-160.us-west-2.compute.amazonaws.com:8080/go";
-
-        int callsPerThread = 100;
+        int callsPerThread = 1;
         int maxThreads = threadGroupSize * numThreadGroups;
-        int totalCalls = maxThreads * callsPerThread * 2;
+        int totalCalls = numThreadGroups * threadGroupSize * callsPerThread * 2;
 
         // Initialize Executor service
         ExecutorService service = Executors.newFixedThreadPool(maxThreads);
         totalThreadsLatch = new CountDownLatch(threadGroupSize);
 
-        // Run initializing threads
+        // Initialize threads
         long start = System.currentTimeMillis();
         for (int i = 0; i < INITIAL_THREAD_COUNT; i++) {
             service.execute(new AlbumThreadRunnable(INITIAL_CALLS_PER_THREAD, serverURL));
@@ -47,9 +56,8 @@ public class AlbumClient {
         totalThreadsLatch.await();
         long end = System.currentTimeMillis();
         System.out.println("Wall time: " + (end - start) * .001 + " s");
-        System.out.println("Throughput: " + (10 * 100) / ((end - start) * 0.001) + " reqs per second (total calls / wall time)");
-        long avgTimeRequest = (TIME_EACH_REQUEST.get() / (10 * 100));
-        System.out.println("Throughput: " + 10 / (avgTimeRequest * 0.001) + " threads per second (calculated)");
+
+
 //        CountDownLatch tempLatch = new CountDownLatch(1);
 //        printResults("Loading Initialization", INITIAL_THREAD_COUNT * INITIAL_CALLS_PER_THREAD * 2, INITIAL_THREAD_COUNT, end, start, tempLatch);
 //        tempLatch.await();
@@ -59,8 +67,7 @@ public class AlbumClient {
 //        SUCCESSFUL_REQ.set(0);
 //        FAILED_REQ.set(0);
         TIME_EACH_REQUEST.set(0);
-
-        // Load Server
+        new Thread(new Consumer(resultsBuffer, "testing", "test1"));
         start = System.currentTimeMillis();
         for (int i = 0; i < numThreadGroups; i++) {
             for (int j = 0; j < threadGroupSize; j++) {
@@ -68,21 +75,18 @@ public class AlbumClient {
             }
 
             // Sleep for delay amount of time, converted to seconds
-            sleep(delay * 1000L);
+            sleep(delay * 1000);
         }
 
 //      Shutdown the executor and wait for all tasks to complete
         totalThreadsLatch.await();
         service.shutdown();
-
-        // Print results
         end = System.currentTimeMillis();
         System.out.println("Wall time: " + (end - start) * .001 + " s");
-        System.out.println("Throughput: " + totalCalls / ((end - start) * 0.001) + " reqs per second (total calls / wall time)");
-        avgTimeRequest = (TIME_EACH_REQUEST.get() / totalCalls);
-        System.out.println("Throughput: " + maxThreads / (avgTimeRequest * 0.001) + " threads per second (calculated)");
-//        System.out.println("Throughput: " + maxThreads / (avgTimeRequest * 0.001) + " threads per second");
-//        long avgTimeRequest = ((end - start) / totalCalls);
+        long avgTimeRequest = (TIME_EACH_REQUEST.get() / totalCalls);
+        System.out.println("Throughput: " + maxThreads / (avgTimeRequest * 0.001) + " threads per second");
+
+
 //        printResults("Loading Server", totalCalls, maxThreads, end, start, new CountDownLatch(0));
     }
 
