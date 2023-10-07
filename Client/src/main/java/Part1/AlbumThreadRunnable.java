@@ -10,8 +10,6 @@ import io.swagger.client.model.ImageMetaData;
 import java.io.File;
 
 public class AlbumThreadRunnable implements Runnable {
-    private final int MAX_ATTEMPTS = 5;
-
     private final int numReqs;
     private long sumReqLatencies;
     private int successfulReq;
@@ -33,20 +31,23 @@ public class AlbumThreadRunnable implements Runnable {
         long start;
         long end;
 
-        // Perform 1000 POST requests
-        for (int k = 0; k < this.numReqs; k++) {
-            start = System.currentTimeMillis();
-            makeApiRequest("POST");
-            end = System.currentTimeMillis();
-            this.sumReqLatencies += (end - start);
-        }
+        int requestGroups = 5;
+        for (int i = 0; i < requestGroups; i++) {
+            // Perform 1000 POST requests
+            for (int k = 0; k < this.numReqs / requestGroups; k++) {
+                start = System.currentTimeMillis();
+                makeApiRequest("POST");
+                end = System.currentTimeMillis();
+                this.sumReqLatencies += (end - start);
+            }
 
-        // Perform 1000 GET requests
-        for (int k = 0; k < this.numReqs; k++) {
-            start = System.currentTimeMillis();
-            makeApiRequest("GET");
-            end = System.currentTimeMillis();
-            this.sumReqLatencies += (end - start);
+            // Perform 1000 GET requests
+            for (int k = 0; k < this.numReqs / requestGroups; k++) {
+                start = System.currentTimeMillis();
+                makeApiRequest("GET");
+                end = System.currentTimeMillis();
+                this.sumReqLatencies += (end - start);
+            }
         }
 
         // Bulk update variables that are tracked
@@ -66,7 +67,8 @@ public class AlbumThreadRunnable implements Runnable {
         int attempts = 0;
         boolean isGetReq = requestMethod.equals("GET");
 
-        while (attempts < MAX_ATTEMPTS) {
+        int maxRetries = 5;
+        while (attempts < maxRetries) {
             try {
                 response = isGetReq ? getAlbum() : postAlbum();
 

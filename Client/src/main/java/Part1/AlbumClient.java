@@ -27,7 +27,7 @@ public class AlbumClient {
         long delay = 2;
 
         // EC2 Server
-        String serverURL = "http://ec2-35-85-44-204.us-west-2.compute.amazonaws.com:8080/Server_Web";
+        String serverURL = "http://ec2-54-213-225-8.us-west-2.compute.amazonaws.com:8080/Server_Web";
 
         // Go Server
 //        String serverURL = "http://ec2-34-221-94-160.us-west-2.compute.amazonaws.com:8080/go";
@@ -45,7 +45,7 @@ public class AlbumClient {
         start = System.currentTimeMillis();
         initializationPhase(servicePool, serverURL);
         end = System.currentTimeMillis();
-//        printResults("Initialization Phase Results", INITIAL_THREAD_COUNT * INITIAL_CALLS_PER_THREAD * 2, INITIAL_THREAD_COUNT, start, end);
+        printResults("Initialization Phase Results", INITIAL_THREAD_COUNT * INITIAL_CALLS_PER_THREAD * 2, INITIAL_THREAD_COUNT, start, end);
 
         // Redefining tracking variables for server loading phase
         totalThreadsLatch = new CountDownLatch(maxThreads);

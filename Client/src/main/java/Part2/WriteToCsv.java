@@ -7,6 +7,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -41,7 +42,7 @@ public class WriteToCsv {
     }
 
     protected void writeLoadTestResultsToSheet(String fileName, String sheetNameToWriteResults, ArrayList<String> resultsToUpload) {
-        String filePath = "src/main/java/Part2/" + fileName + ".xlsx";
+        String filePath = "C:\\Users\\Peter\\Northeastern\\CS6650\\CS6650-Assignment1\\Client\\src\\main\\java\\Part2\\" + fileName + ".xlsx";
         System.out.println("hello");
         try {
             FileInputStream fileInputStream = new FileInputStream(filePath);

@@ -14,10 +14,10 @@ public class Producer implements Runnable{
 
     @Override
     public void run() {
-        resultsBuffer.offer(groupResults);
-
-        synchronized (this.resultsBuffer) {
-            this.resultsBuffer.notify();
+        try {
+            resultsBuffer.put(groupResults);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 }
