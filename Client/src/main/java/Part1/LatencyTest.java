@@ -17,7 +17,7 @@ public class LatencyTest {
         AlbumsProfile profile = new AlbumsProfile().artist("Oda").title("One Piece").year("1999");
         int numReqs = 100;
 
-        String serverURL = "http://ec2-35-87-143-25.us-west-2.compute.amazonaws.com:8080/Server_Web";
+        String serverURL = "http://ec2-35-85-44-204.us-west-2.compute.amazonaws.com:8080/Server_Web";
 //        String serverURL = "http://ec2-54-191-58-4.us-west-2.compute.amazonaws.com:8080/go";
 
         long start;
@@ -30,15 +30,15 @@ public class LatencyTest {
 
         System.out.println(response.getData());
 
-        long latency = 0;
-        long startLoop = System.currentTimeMillis();
-////
-        for (int i = 0; i < numReqs; i++) {
-            start = System.currentTimeMillis();
-            albumClient.newAlbumWithHttpInfo(image, profile);
-            end = System.currentTimeMillis();
-            latency += end - start;
-        }
+//        long latency = 0;
+//        long startLoop = System.currentTimeMillis();
+//////
+//        for (int i = 0; i < numReqs; i++) {
+//            start = System.currentTimeMillis();
+//            albumClient.newAlbumWithHttpInfo(image, profile);
+//            end = System.currentTimeMillis();
+//            latency += end - start;
+//        }
 //
 //        for (int i = 0; i < numReqs; i++) {
 //            start = System.currentTimeMillis();
@@ -47,13 +47,13 @@ public class LatencyTest {
 //            latency += end - start;
 //        }
 //
-        end = System.currentTimeMillis();
-        double wallTime = (end - startLoop) * .001;
-        latency = latency / (numReqs * 2);
-        double throughPut = 1 / (latency * 0.001);
-        System.out.println("Total time: " + wallTime + "s");
-        System.out.println("Avg time request: " + latency + "ms");
-//
+//        end = System.currentTimeMillis();
+//        double wallTime = (end - startLoop) * .001;
+//        latency = latency / (numReqs * 2);
+//        double throughPut = 1 / (latency * 0.001);
+//        System.out.println("Total time: " + wallTime + "s");
+//        System.out.println("Avg time request: " + latency + "ms");
+////
 //        new WriteToCsv("LatencyTest", 1, numReqs * 2, 0, 0, latency, throughPut, wallTime).writeTestResults();
     }
 

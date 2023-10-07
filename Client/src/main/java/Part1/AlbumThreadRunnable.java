@@ -8,31 +8,24 @@ import io.swagger.client.model.AlbumsProfile;
 import io.swagger.client.model.ImageMetaData;
 
 import java.io.File;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class AlbumThreadRunnable implements Runnable {
-    private final int numReqs;
-    private final String serverUrl;
-    private long timeEachReq;
-//    private int successfulReq;
-//    private int failedReq;
-//
     private final int MAX_ATTEMPTS = 5;
 
-    private final File image = new File("src/main/java/testingImage.png");
-    private final AlbumsProfile profile = new AlbumsProfile().artist("Luffy").title("One Piece").year("2023");
-
+    private final int numReqs;
+    private long sumReqLatencies;
+    private int successfulReq;
+    private int failedReq;
     private final DefaultApi albumsApi;
 
 
     public AlbumThreadRunnable(int numReqs, String serverUrl) {
         this.numReqs = numReqs;
-        this.serverUrl = serverUrl;
         this.albumsApi = new DefaultApi();
-        this.albumsApi.getApiClient().setBasePath(this.serverUrl);
-//        this.successfulReq = 0;
-//        this.failedReq = 0;
-        this.timeEachReq = 0;
+        this.albumsApi.getApiClient().setBasePath(serverUrl);
+        this.successfulReq = 0;
+        this.failedReq = 0;
+        this.sumReqLatencies = 0;
     }
 
     @Override
@@ -43,120 +36,52 @@ public class AlbumThreadRunnable implements Runnable {
         // Perform 1000 POST requests
         for (int k = 0; k < this.numReqs; k++) {
             start = System.currentTimeMillis();
-
             makeApiRequest("POST");
-
             end = System.currentTimeMillis();
-
-            this.timeEachReq += (end - start);
+            this.sumReqLatencies += (end - start);
         }
 
-//         Perform 1000 GET requests
+        // Perform 1000 GET requests
         for (int k = 0; k < this.numReqs; k++) {
             start = System.currentTimeMillis();
-
             makeApiRequest("GET");
-
             end = System.currentTimeMillis();
-
-            this.timeEachReq += (end - start);
+            this.sumReqLatencies += (end - start);
         }
+
         // Bulk update variables that are tracked
-//        AlbumClient.SUCCESSFUL_REQ.addAndGet(this.successfulReq);
-//        AlbumClient.FAILED_REQ.addAndGet(this.failedReq);
-        AlbumClient.TIME_EACH_REQUEST.addAndGet(this.timeEachReq);
+        AlbumClient.SUCCESSFUL_REQ.addAndGet(this.successfulReq);
+        AlbumClient.FAILED_REQ.addAndGet(this.failedReq);
+        AlbumClient.SUM_LATENCY_EACH_REQ.addAndGet(this.sumReqLatencies);
         AlbumClient.totalThreadsLatch.countDown();
     }
 
     /**
-     * Method that makes a request to the given Api instance.
+     * Method that makes a request to the given Api instance. If the request fails, will re-try up to MAX_ATTEMPT times.
      *
-     * @param albumRequest - The type of request to make.
+     * @param requestMethod - The type of request to make (POST vs. GET).
      */
-    private void makeApiRequest(String albumRequest) {
+    private void makeApiRequest(String requestMethod) {
         ApiResponse<?> response;
         int attempts = 0;
-        boolean isGetReq = albumRequest.equals("GET");
+        boolean isGetReq = requestMethod.equals("GET");
 
         while (attempts < MAX_ATTEMPTS) {
             try {
                 response = isGetReq ? getAlbum() : postAlbum();
 
                 if (response.getStatusCode() == 200) {
-//                    this.successfulReq += 1;
+                    this.successfulReq += 1;
                     return;
                 }
                 attempts++;
             } catch (ApiException e) {
-//                e.printStackTrace();
                 attempts++;
             }
-//            threadSleep(attempts++);
         }
-//        this.failedReq += 1;
+
+        this.failedReq += 1;
     }
-//
-//    /**
-//     * Method that makes a request to the given Api instance.
-//     *
-//     * @param albumRequest - The type of request to make.
-//     * @param albumsApi    - The api instance for the current thread.
-//     */
-//    private void makeApiPostRequest(String albumRequest, DefaultApi albumsApi) {
-//        ApiResponse<?> response;
-//        int attempts = 0;
-//
-//        while (attempts < MAX_ATTEMPTS) {
-//            try {
-////                response = postAlbum(albumsApi);
-//                postAlbum(albumsApi);
-////                if (response.getStatusCode() == 200) {
-//////                    this.successfulReq += 1;
-////                    return;
-////                }
-//                return;
-////                attempts++;
-//            } catch (ApiException e) {
-////                e.printStackTrace();
-//                attempts++;
-//            }
-//            attempts++;
-////            threadSleep(attempts++);
-//        }
-//
-////        this.failedReq += 1;
-//    }
-//    private void makeApiGetRequest(String albumRequest, DefaultApi albumsApi) {
-//        ApiResponse<?> response;
-//        int attempts = 0;
-//
-//        while (attempts < MAX_ATTEMPTS) {
-//            try {
-//                response = getAlbum(albumsApi);
-//
-//                if (response.getStatusCode() == 200) {
-////                    this.successfulReq += 1;
-//                    return;
-//                }
-//                attempts++;
-//            } catch (ApiException e) {
-////                e.printStackTrace();
-//                attempts++;
-//            }
-//
-////            threadSleep(attempts++);
-//        }
-//
-////        this.failedReq += 1;
-//    }
-//
-//    private void threadSleep(int attempts) {
-//        try {
-//            sleep(2 ^ attempts);
-//        } catch (InterruptedException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
 
     /**
      * Method to make a GET Album request to the given api instance.
@@ -165,7 +90,7 @@ public class AlbumThreadRunnable implements Runnable {
      * @throws ApiException - If fails to call the API, e.g. server error or cannot deserialize the response body.
      */
     private ApiResponse<AlbumInfo> getAlbum() throws ApiException {
-        String albumID = "3"; // String | path  parameter is album key to retrieve
+        String albumID = "3";
         return this.albumsApi.getAlbumByKeyWithHttpInfo(albumID);
     }
 
@@ -176,6 +101,8 @@ public class AlbumThreadRunnable implements Runnable {
      * @throws ApiException - If fails to call the API, e.g. server error or cannot deserialize the response body.
      */
     private ApiResponse<ImageMetaData> postAlbum() throws ApiException {
+        File image = new File("src/main/java/testingImage.png");
+        AlbumsProfile profile = new AlbumsProfile().artist("Monkey D. Luffy").title("One Piece").year("1999");
         return this.albumsApi.newAlbumWithHttpInfo(image, profile);
     }
 }
