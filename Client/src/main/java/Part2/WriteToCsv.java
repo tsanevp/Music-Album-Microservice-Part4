@@ -1,5 +1,6 @@
 package Part2;
 
+import java.util.concurrent.CountDownLatch;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -15,7 +16,7 @@ public class WriteToCsv {
     public WriteToCsv() {
     }
 
-    protected void createNewSheetForLoadTest(String fileName, String newSheetName) {
+    protected void createNewSheetForLoadTest(String fileName, String newSheetName, CountDownLatch sheetCountDownLatch) {
         String filePath = "src/main/java/Part2/" + fileName + ".xlsx";
 
         try {
@@ -24,14 +25,14 @@ public class WriteToCsv {
 
             Sheet sheet = workbook.createSheet(newSheetName);
 
-            Row headers = sheet.getRow(0);
+            Row headers = sheet.createRow(0);
 
             headers.createCell(0).setCellValue("Start Time (ms)");
             headers.createCell(1).setCellValue("Request Type (POST/GET)");
             headers.createCell(2).setCellValue("Latency (ms)");
             headers.createCell(3).setCellValue("Response Code");
 
-            FileOutputStream outputStream = new FileOutputStream("src/main/java/TestingResults.xlsx");
+            FileOutputStream outputStream = new FileOutputStream(filePath);
             workbook.write(outputStream);
 
             outputStream.close();
@@ -39,11 +40,12 @@ public class WriteToCsv {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        sheetCountDownLatch.countDown();
     }
 
     protected void writeLoadTestResultsToSheet(String fileName, String sheetNameToWriteResults, ArrayList<String> resultsToUpload) {
-        String filePath = "C:\\Users\\Peter\\Northeastern\\CS6650\\CS6650-Assignment1\\Client\\src\\main\\java\\Part2\\" + fileName + ".xlsx";
-        System.out.println("hello");
+        String filePath = "src/main/java/Part2/" + fileName + ".xlsx";
+
         try {
             FileInputStream fileInputStream = new FileInputStream(filePath);
             Workbook workbook = new XSSFWorkbook(fileInputStream);

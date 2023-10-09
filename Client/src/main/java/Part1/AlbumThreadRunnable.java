@@ -16,7 +16,6 @@ public class AlbumThreadRunnable implements Runnable {
     private int failedReq;
     private final DefaultApi albumsApi;
 
-
     public AlbumThreadRunnable(int numReqs, String serverUrl) {
         this.numReqs = numReqs;
         this.albumsApi = new DefaultApi();
@@ -31,6 +30,7 @@ public class AlbumThreadRunnable implements Runnable {
         long start;
         long end;
 
+        // Alternating POST & GET requests to reduce load on server when handling images
         int requestGroups = 5;
         for (int i = 0; i < requestGroups; i++) {
             // Perform 1000 POST requests

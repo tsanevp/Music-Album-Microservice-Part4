@@ -20,11 +20,8 @@ public class Consumer implements Runnable {
 
     @Override
     public void run() {
-        System.out.println("started consumer");
         for (int i = 0; i < this.numThreads; i++){
-            System.out.println(resultsBuffer.size());
             try {
-                System.out.println("taking from queue");
                 ArrayList<String> groupResults = this.resultsBuffer.take(); // Blocks until an item is available
                 writeToCsv.writeLoadTestResultsToSheet(this.fileName, this.sheetName, groupResults);
             } catch (InterruptedException e) {

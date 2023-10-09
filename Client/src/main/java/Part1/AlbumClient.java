@@ -23,14 +23,14 @@ public class AlbumClient {
 
         // Define starting constants
         int threadGroupSize = 10;
-        int numThreadGroups = 10;
+        int numThreadGroups = 20;
         long delay = 2;
 
         // EC2 Server
-        String serverURL = "http://ec2-54-213-225-8.us-west-2.compute.amazonaws.com:8080/Server_Web";
+        String serverURL = "http://ec2-35-88-162-4.us-west-2.compute.amazonaws.com:8080/Server_Web";
 
         // Go Server
-//        String serverURL = "http://ec2-34-221-94-160.us-west-2.compute.amazonaws.com:8080/go";
+//        String serverURL = "http://ec2-35-88-162-4.us-west-2.compute.amazonaws.com:8080/go";
 
         // Thread calls and calculations
         int callsPerThread = 1000;
@@ -45,7 +45,7 @@ public class AlbumClient {
         start = System.currentTimeMillis();
         initializationPhase(servicePool, serverURL);
         end = System.currentTimeMillis();
-        printResults("Initialization Phase Results", INITIAL_THREAD_COUNT * INITIAL_CALLS_PER_THREAD * 2, INITIAL_THREAD_COUNT, start, end);
+//        printResults(numThreadGroups, threadGroupSize, callsPerThread, "Initialization Phase Results", INITIAL_THREAD_COUNT * INITIAL_CALLS_PER_THREAD * 2, INITIAL_THREAD_COUNT, start, end);
 
         // Redefining tracking variables for server loading phase
         totalThreadsLatch = new CountDownLatch(maxThreads);
@@ -58,7 +58,7 @@ public class AlbumClient {
         loadServerPhase(numThreadGroups, threadGroupSize, delay, serverURL, callsPerThread, servicePool);
         end = System.currentTimeMillis();
 
-        printResults("Loading Server Phase", totalCalls, maxThreads, start, end);
+        printResults(numThreadGroups, threadGroupSize, callsPerThread, "Loading Server Phase", totalCalls, maxThreads, start, end);
     }
 
     /**
@@ -105,25 +105,30 @@ public class AlbumClient {
     /**
      * Simple method to print the results of the initialization phase and loading phase to the CL.
      *
+     * @param numThreadGroups - The number of thread groups ran.
+     * @param threadGroupSize - The number of threads created in each group.
+     * @param callsPerThread - The number of GET and POST requests each thread makes.
      * @param totalCalls - The total requests made to the api.
      * @param maxThreads - The maximum amount of threads that could be running at once.
      * @param end        - The end time of the current phase.
      * @param start      - The start time of the current phase.
      */
-    protected static void printResults(String currentPhase, int totalCalls, int maxThreads, long start, long end) {
+    protected static void printResults(int numThreadGroups, int threadGroupSize, int callsPerThread, String currentPhase, int totalCalls, int maxThreads, long start, long end) {
         DecimalFormat decimalFormat = new DecimalFormat("#.##");
         long avgTimeEachRequestCalculated = (SUM_LATENCY_EACH_REQ.get() / totalCalls);
         double wallTime = (end - start) * 0.001;
 
         System.out.println("-----------------------------------------------------------------------------------------");
-        System.out.println("-------- Printing Results For " + currentPhase + " --------\n");
+        System.out.println("-------- Printing Results For " + currentPhase + " --------");
+        System.out.println("Thread Groups = " + numThreadGroups + ", Number of Threads per Group = " + threadGroupSize + ", Call per Thread = " + callsPerThread);
         System.out.println("Number of Successful Requests: " + SUCCESSFUL_REQ.get());
         System.out.println("Number of Failed Requests: " + FAILED_REQ.get());
         System.out.println("Avg Time of Each Request: " + decimalFormat.format(avgTimeEachRequestCalculated) + " ms ---> Sum of each request latency / total successful requests\n");
-        System.out.println("-------- Throughput's & Wall Time --------\n");
-        System.out.println("Estimated Throughput: " + decimalFormat.format(maxThreads / (avgTimeEachRequestCalculated * 0.001)) + " (req/sec) ---> max concurrent threads / avg latency");
+        System.out.println("-------- Throughput's & Wall Time --------");
+        System.out.println("Estimated Throughput: " + decimalFormat.format(maxThreads / (avgTimeEachRequestCalculated * 0.001)) + " (req/sec) ---> max concurrent threads / avg latency\n");
+        System.out.println("---- Measured Values ----");
         System.out.println("Actual Throughput: " + decimalFormat.format(SUCCESSFUL_REQ.get() / wallTime) + " (req/sec) ---> total successful requests / wall time");
-        System.out.println("Wall Time: " + decimalFormat.format(wallTime) + " (sec)\n");
+        System.out.println("Wall Time: " + decimalFormat.format(wallTime) + " (sec)");
         System.out.println("-------- End of Results For " + currentPhase + " --------");
         System.out.println("-----------------------------------------------------------------------------------------");
     }
