@@ -25,7 +25,7 @@ public class AlbumClient {
 
         // Define starting constants
         int threadGroupSize = 10;
-        int numThreadGroups = 10;
+        int numThreadGroups = 30;
         long delay = 2;
 
         // EC2 Server

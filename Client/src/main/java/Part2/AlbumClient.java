@@ -25,15 +25,16 @@ public class AlbumClient {
 
     public static void main(String[] args) throws InterruptedException {
         // Create new sheet for current test in results csv file
-        String sheetName = "JS-T2-10TG";
-        String fileName = "LoadResults";
+        String sheetName = "Go-TG20-T1";
+        String fileName = "Go10Threads3";
 
         CountDownLatch sheetCountDownLatch = new CountDownLatch(1);
         writeToCsv = new WriteToCsv(fileName, sheetName, sheetCountDownLatch);
         sheetCountDownLatch.await();
 
         long start, end;
-        Thread t;
+        int testNum = 3;
+        String currentPhase = "Loading Go Server Phase (Test #" + testNum + ")";
 
         // Define starting constants
         int threadGroupSize = 10;
@@ -41,10 +42,10 @@ public class AlbumClient {
         long delay = 2;
 
         // EC2 Server
-        String serverURL = "http://ec2-35-88-162-4.us-west-2.compute.amazonaws.com:8080/Server_Web";
+//        String serverURL = "http://ec2-52-88-185-221.us-west-2.compute.amazonaws.com:8080/Server_Web";
 
         // Go Server
-//        String serverURL = "http://ec2-35-88-162-4.us-west-2.compute.amazonaws.com:8080/go";
+        String serverURL = "http://ec2-35-91-223-26.us-west-2.compute.amazonaws.com:8080/go";
 
         // Thread calls and calculations
         int callsPerThread = 1000;
@@ -54,8 +55,6 @@ public class AlbumClient {
         // Executor service used for thread pooling and countdown latch to track when loading is complete
         ExecutorService servicePool = Executors.newFixedThreadPool(maxThreads);
         totalThreadsLatch = new CountDownLatch(threadGroupSize);
-//        t = new Thread(new Consumer(INITIAL_THREAD_COUNT, resultsBuffer, "testing", sheetName));
-//        t.start();
 
         // Run initialization phase
         start = System.currentTimeMillis();
@@ -63,25 +62,19 @@ public class AlbumClient {
         end = System.currentTimeMillis();
 //        printResults(numThreadGroups, threadGroupSize, callsPerThread, "Initialization Phase Results", INITIAL_THREAD_COUNT * INITIAL_CALLS_PER_THREAD * 2, INITIAL_THREAD_COUNT, start, end);
 
-//        t.join();
-
         // Redefining tracking variables for server loading phase
         totalThreadsLatch = new CountDownLatch(maxThreads);
         SUCCESSFUL_REQ.set(0);
         FAILED_REQ.set(0);
         SUM_LATENCY_EACH_REQ.set(0);
-//        resultsBuffer = new LinkedBlockingQueue<>();
-
-//        t = new Thread(new Consumer(maxThreads, resultsBuffer, "testing", sheetName));
-//        t.start();
 
         // Load Server
         start = System.currentTimeMillis();
         loadServerPhase(numThreadGroups, threadGroupSize, delay, serverURL, callsPerThread, servicePool);
         end = System.currentTimeMillis();
 
-//        t.join();
-        printResults(numThreadGroups, threadGroupSize, callsPerThread, "Loading Server Phase", totalCalls, maxThreads, start, end);
+        writeToCsv.writeLoadTestResultsToSheet();
+        printResults(numThreadGroups, threadGroupSize, callsPerThread, currentPhase, totalCalls, maxThreads, start, end);
     }
 
     /**
@@ -99,7 +92,7 @@ public class AlbumClient {
     private static void loadServerPhase(int numThreadGroups, int threadGroupSize, long delay, String serverURL, int callsPerThread, ExecutorService servicePool) throws InterruptedException {
         for (int i = 0; i < numThreadGroups; i++) {
             for (int j = 0; j < threadGroupSize; j++) {
-                servicePool.execute(new AlbumThreadRunnable(callsPerThread, serverURL));
+                servicePool.execute(new AlbumThreadRunnable(callsPerThread, serverURL, true));
             }
 
             // Sleep for delay amount of time, converted to seconds
@@ -120,7 +113,7 @@ public class AlbumClient {
      */
     private static void initializationPhase(ExecutorService servicePool, String serverURL) throws InterruptedException {
         for (int i = 0; i < INITIAL_THREAD_COUNT; i++) {
-            servicePool.execute(new AlbumThreadRunnable(INITIAL_CALLS_PER_THREAD, serverURL));
+            servicePool.execute(new AlbumThreadRunnable(INITIAL_CALLS_PER_THREAD, serverURL, false));
         }
         totalThreadsLatch.await();
     }
@@ -137,21 +130,25 @@ public class AlbumClient {
      * @param start           - The start time of the current phase.
      */
     protected static void printResults(int numThreadGroups, int threadGroupSize, int callsPerThread, String currentPhase, int totalCalls, int maxThreads, long start, long end) {
+        LoadCalculations loadCalculations = new LoadCalculations(latencies);
         DecimalFormat decimalFormat = new DecimalFormat("#.##");
-        long avgTimeEachRequestCalculated = (SUM_LATENCY_EACH_REQ.get() / totalCalls);
         double wallTime = (end - start) * 0.001;
 
         System.out.println("-----------------------------------------------------------------------------------------");
         System.out.println("-------- Printing Results For " + currentPhase + " --------");
         System.out.println("Thread Groups = " + numThreadGroups + ", Number of Threads per Group = " + threadGroupSize + ", Call per Thread = " + callsPerThread);
         System.out.println("Number of Successful Requests: " + SUCCESSFUL_REQ.get());
-        System.out.println("Number of Failed Requests: " + FAILED_REQ.get());
-        System.out.println("Avg Time of Each Request: " + decimalFormat.format(avgTimeEachRequestCalculated) + " ms ---> Sum of each request latency / total successful requests\n");
-        System.out.println("-------- Throughput's & Wall Time --------");
-        System.out.println("Estimated Throughput: " + decimalFormat.format(maxThreads / (avgTimeEachRequestCalculated * 0.001)) + " (req/sec) ---> max concurrent threads / avg latency\n");
-        System.out.println("---- Measured Values ----");
-        System.out.println("Actual Throughput: " + decimalFormat.format(SUCCESSFUL_REQ.get() / wallTime) + " (req/sec) ---> total successful requests / wall time");
-        System.out.println("Wall Time: " + decimalFormat.format(wallTime) + " (sec)");
+        System.out.println("Number of Failed Requests: " + FAILED_REQ.get() + "\n");
+        System.out.println("-------- Results --------");
+        System.out.println("---- Throughput's & Wall Time ----");
+        System.out.println("Throughput: " + decimalFormat.format(SUCCESSFUL_REQ.get() / wallTime) + " (req/sec) ---> total successful requests / wall time");
+        System.out.println("Wall Time: " + decimalFormat.format(wallTime) + " (sec)\n");
+        System.out.println("---- Calculations ----");
+        System.out.println("Mean Response Time: " + decimalFormat.format(loadCalculations.getMeanResponseTime()) + " (ms)");
+        System.out.println("Median Response Time: " + decimalFormat.format(loadCalculations.getMedianResponseTime()) + " (ms)");
+        System.out.println("p99 Response Time: " + decimalFormat.format(loadCalculations.getPercentile(99)) + " (ms)");
+        System.out.println("Min Response Time: " + decimalFormat.format(loadCalculations.getMin()) + " (ms)");
+        System.out.println("Max Response Time: " + decimalFormat.format(loadCalculations.getMax()) + " (ms)");
         System.out.println("-------- End of Results For " + currentPhase + " --------");
         System.out.println("-----------------------------------------------------------------------------------------");
     }

@@ -15,10 +15,11 @@ import static Part2.AlbumClient.writeToCsv;
 
 public class  AlbumThreadRunnable implements Runnable {
     private final int numReqs;
-    private long sumReqLatencies;
+    private final DefaultApi albumsApi;
+    private final boolean loadingServer;
     private int successfulReq;
     private int failedReq;
-    private final DefaultApi albumsApi;
+    private long sumReqLatencies;
     private final ArrayList<String[]> threadResults;
     private final List<Long> latencies;
 
@@ -29,10 +30,11 @@ public class  AlbumThreadRunnable implements Runnable {
      * @param numReqs - The number of each request type the thread should send (GET vs. POST).
      * @param serverUrl - The server url each request should target.
      */
-    public AlbumThreadRunnable(int numReqs, String serverUrl) {
+    public AlbumThreadRunnable(int numReqs, String serverUrl, boolean loadingServer) {
         this.numReqs = numReqs;
         this.albumsApi = new DefaultApi();
         this.albumsApi.getApiClient().setBasePath(serverUrl);
+        this.loadingServer = loadingServer;
         this.successfulReq = 0;
         this.failedReq = 0;
         this.sumReqLatencies = 0;
@@ -79,14 +81,9 @@ public class  AlbumThreadRunnable implements Runnable {
         AlbumClient.latencies.addAll(this.latencies);
         AlbumClient.totalThreadsLatch.countDown();
 
-        writeToCsv.writeLoadTestResultsToSheet(threadResults);
-
-//        try {
-//            AlbumClient.resultsBuffer.put(threadResults);
-//        } catch (InterruptedException e) {
-//            throw new RuntimeException(e);
-//        }
-
+        if (this.loadingServer) {
+            writeToCsv.addThreadResults(threadResults);
+        }
     }
 
     /**
