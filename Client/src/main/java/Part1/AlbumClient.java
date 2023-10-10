@@ -20,19 +20,19 @@ public class AlbumClient {
 
     public static void main(String[] args) throws InterruptedException {
         long start, end;
-        int testNum = 1;
-        String currentPhase = "Loading Java Server Phase (Test #" + testNum + ")";
+        int testNum = 3;
+        String currentPhase = "Loading Go Server Phase (Test #" + testNum + ")";
 
         // Define starting constants
         int threadGroupSize = 10;
-        int numThreadGroups = 20;
+        int numThreadGroups = 10;
         long delay = 2;
 
         // EC2 Server
-        String serverURL = "http://ec2-54-203-119-15.us-west-2.compute.amazonaws.com:8080/Server_Web";
+//        String serverURL = "http://ec2-54-203-119-15.us-west-2.compute.amazonaws.com:8080/Server_Web";
 
         // Go Server
-//        String serverURL = "http://ec2-54-203-119-15.us-west-2.compute.amazonaws.com:8080/go";
+        String serverURL = "http://ec2-54-203-119-15.us-west-2.compute.amazonaws.com:8080/go";
 
         // Thread calls and calculations
         int callsPerThread = 1000;
