@@ -20,6 +20,8 @@ public class AlbumClient {
 
     public static void main(String[] args) throws InterruptedException {
         long start, end;
+        int testNum = 1;
+        String currentPhase = "Loading Java Server Phase (Test #" + testNum + ")";
 
         // Define starting constants
         int threadGroupSize = 10;
@@ -58,7 +60,7 @@ public class AlbumClient {
         loadServerPhase(numThreadGroups, threadGroupSize, delay, serverURL, callsPerThread, servicePool);
         end = System.currentTimeMillis();
 
-        printResults(numThreadGroups, threadGroupSize, callsPerThread, "Loading Server Phase", totalCalls, maxThreads, start, end);
+        printResults(numThreadGroups, threadGroupSize, callsPerThread, currentPhase, totalCalls, maxThreads, start, end);
     }
 
     /**
@@ -108,6 +110,7 @@ public class AlbumClient {
      * @param numThreadGroups - The number of thread groups ran.
      * @param threadGroupSize - The number of threads created in each group.
      * @param callsPerThread - The number of GET and POST requests each thread makes.
+     * @param currentPhase - The current phase test (initialization vs. load).
      * @param totalCalls - The total requests made to the api.
      * @param maxThreads - The maximum amount of threads that could be running at once.
      * @param end        - The end time of the current phase.
