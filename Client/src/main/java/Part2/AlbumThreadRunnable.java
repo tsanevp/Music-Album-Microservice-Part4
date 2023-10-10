@@ -9,6 +9,9 @@ import io.swagger.client.model.ImageMetaData;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
+
+import static Part2.AlbumClient.writeToCsv;
 
 public class  AlbumThreadRunnable implements Runnable {
     private final int numReqs;
@@ -16,10 +19,16 @@ public class  AlbumThreadRunnable implements Runnable {
     private int successfulReq;
     private int failedReq;
     private final DefaultApi albumsApi;
-    private ArrayList<String> groupResults;
+    private final ArrayList<String[]> threadResults;
+    private final List<Long> latencies;
 
 
-
+    /**
+     * Class constructor used to create a thread runnable.
+     *
+     * @param numReqs - The number of each request type the thread should send (GET vs. POST).
+     * @param serverUrl - The server url each request should target.
+     */
     public AlbumThreadRunnable(int numReqs, String serverUrl) {
         this.numReqs = numReqs;
         this.albumsApi = new DefaultApi();
@@ -27,34 +36,39 @@ public class  AlbumThreadRunnable implements Runnable {
         this.successfulReq = 0;
         this.failedReq = 0;
         this.sumReqLatencies = 0;
-        this.groupResults = new ArrayList<>();
+        this.threadResults = new ArrayList<>();
+        this.latencies = new ArrayList<>();
     }
 
     @Override
     public void run() {
-        long start;
-        long end;
-
+        long start, end, currentLatency;
+        int responseCode;
         int requestGroups = 5;
+
         for (int i = 0; i < requestGroups; i++) {
             // Perform 1000 POST requests
             for (int k = 0; k < this.numReqs / requestGroups; k++) {
                 start = System.currentTimeMillis();
-                makeApiRequest("POST");
+                responseCode = makeApiRequest("POST");
                 end = System.currentTimeMillis();
-                this.sumReqLatencies += (end - start);
+                currentLatency = end - start;
 
-                groupResults.add(start + "," + "POST" + "," + (end - start) + "," + 200);
+                this.sumReqLatencies += currentLatency;
+                this.latencies.add(currentLatency);
+                threadResults.add(new String[]{String.valueOf(start), "POST", String.valueOf((end - start)), String.valueOf(responseCode)});
             }
 
             // Perform 1000 GET requests
             for (int k = 0; k < this.numReqs / requestGroups; k++) {
                 start = System.currentTimeMillis();
-                makeApiRequest("GET");
+                responseCode = makeApiRequest("GET");
                 end = System.currentTimeMillis();
-                this.sumReqLatencies += (end - start);
+                currentLatency = end - start;
 
-                groupResults.add(start + "," + "GET" + "," + (end - start) + "," + 200);
+                this.sumReqLatencies += currentLatency;
+                this.latencies.add(currentLatency);
+                threadResults.add(new String[]{String.valueOf(start), "GET", String.valueOf((end - start)), String.valueOf(responseCode)});
             }
         }
 
@@ -62,13 +76,16 @@ public class  AlbumThreadRunnable implements Runnable {
         AlbumClient.SUCCESSFUL_REQ.addAndGet(this.successfulReq);
         AlbumClient.FAILED_REQ.addAndGet(this.failedReq);
         AlbumClient.SUM_LATENCY_EACH_REQ.addAndGet(this.sumReqLatencies);
+        AlbumClient.latencies.addAll(this.latencies);
         AlbumClient.totalThreadsLatch.countDown();
 
-        try {
-            AlbumClient.resultsBuffer.put(groupResults);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        writeToCsv.writeLoadTestResultsToSheet(threadResults);
+
+//        try {
+//            AlbumClient.resultsBuffer.put(threadResults);
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
 
     }
 
@@ -76,9 +93,10 @@ public class  AlbumThreadRunnable implements Runnable {
      * Method that makes a request to the given Api instance. If the request fails, will re-try up to MAX_ATTEMPT times.
      *
      * @param requestMethod - The type of request to make (POST vs. GET).
+     * @return - The response code of the request.
      */
-    private void makeApiRequest(String requestMethod) {
-        ApiResponse<?> response;
+    private int makeApiRequest(String requestMethod) {
+        ApiResponse<?> response = null;
         int attempts = 0;
         boolean isGetReq = requestMethod.equals("GET");
 
@@ -89,7 +107,7 @@ public class  AlbumThreadRunnable implements Runnable {
 
                 if (response.getStatusCode() == 200) {
                     this.successfulReq += 1;
-                    return;
+                    return response.getStatusCode();
                 }
                 attempts++;
             } catch (ApiException e) {
@@ -98,6 +116,10 @@ public class  AlbumThreadRunnable implements Runnable {
         }
 
         this.failedReq += 1;
+
+        // The response code is expected to never be null. Can only be null if all attempts throw exception.
+        assert response != null;
+        return response.getStatusCode();
     }
 
     /**

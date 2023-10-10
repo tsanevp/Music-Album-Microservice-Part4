@@ -1,5 +1,6 @@
 package Part2;
 
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -13,17 +14,25 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 public class WriteToCsv {
-    public WriteToCsv() {
+    private final String fileName;
+    private final String sheetName;
+    private final CountDownLatch countDownLatch;
+
+    public WriteToCsv(String fileName, String sheetName, CountDownLatch countDownLatch) {
+        this.fileName = fileName;
+        this.sheetName = sheetName;
+        this.countDownLatch = countDownLatch;
+        this.createNewSheetForLoadTest();
     }
 
-    protected void createNewSheetForLoadTest(String fileName, String newSheetName, CountDownLatch sheetCountDownLatch) {
-        String filePath = "src/main/java/Part2/" + fileName + ".xlsx";
+    protected void createNewSheetForLoadTest() {
+        String filePath = "src/main/java/Part2/" + this.fileName + ".xlsx";
 
         try {
             FileInputStream fileInputStream = new FileInputStream(filePath);
             Workbook workbook = new XSSFWorkbook(fileInputStream);
 
-            Sheet sheet = workbook.createSheet(newSheetName);
+            Sheet sheet = workbook.createSheet(this.sheetName);
 
             Row headers = sheet.createRow(0);
 
@@ -40,28 +49,26 @@ public class WriteToCsv {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        sheetCountDownLatch.countDown();
+        this.countDownLatch.countDown();
     }
 
-    protected void writeLoadTestResultsToSheet(String fileName, String sheetNameToWriteResults, ArrayList<String> resultsToUpload) {
-        String filePath = "src/main/java/Part2/" + fileName + ".xlsx";
+    protected synchronized void writeLoadTestResultsToSheet(List<String[]> resultsToUpload) {
+        String filePath = "src/main/java/Part2/" + this.fileName + ".xlsx";
 
         try {
             FileInputStream fileInputStream = new FileInputStream(filePath);
             Workbook workbook = new XSSFWorkbook(fileInputStream);
 
-            Sheet sheet = workbook.getSheet(sheetNameToWriteResults);
+            Sheet sheet = workbook.getSheet(this.fileName);
 
             int newRowNum = sheet.getLastRowNum() + 1;
 
-            for (String result : resultsToUpload) {
-                String[] current = result.split(",");
-
+            for (String[] result : resultsToUpload) {
                 Row newRow = sheet.createRow(newRowNum);
-                newRow.createCell(0).setCellValue(current[0]);
-                newRow.createCell(1).setCellValue(current[1]);
-                newRow.createCell(2).setCellValue(current[2]);
-                newRow.createCell(3).setCellValue(current[3]);
+                newRow.createCell(0).setCellValue(result[0]);
+                newRow.createCell(1).setCellValue(result[1]);
+                newRow.createCell(2).setCellValue(result[2]);
+                newRow.createCell(3).setCellValue(result[3]);
 
                 newRowNum++;
             }

@@ -16,6 +16,12 @@ public class AlbumThreadRunnable implements Runnable {
     private int failedReq;
     private final DefaultApi albumsApi;
 
+    /**
+     * Class constructor used to create a thread runnable.
+     *
+     * @param numReqs - The number of each request type the thread should send (GET vs. POST).
+     * @param serverUrl - The server url each request should target.
+     */
     public AlbumThreadRunnable(int numReqs, String serverUrl) {
         this.numReqs = numReqs;
         this.albumsApi = new DefaultApi();
@@ -27,8 +33,7 @@ public class AlbumThreadRunnable implements Runnable {
 
     @Override
     public void run() {
-        long start;
-        long end;
+        long start, end;
 
         // Alternating POST & GET requests to reduce load on server when handling images
         int requestGroups = 5;

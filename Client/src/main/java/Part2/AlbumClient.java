@@ -2,7 +2,11 @@ package Part2;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.concurrent.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -15,14 +19,17 @@ public class AlbumClient {
     protected static final AtomicInteger FAILED_REQ = new AtomicInteger(0);
 
     protected static final AtomicLong SUM_LATENCY_EACH_REQ = new AtomicLong(0);
+    protected static List<Long> latencies = Collections.synchronizedList(new ArrayList<>());
     protected static CountDownLatch totalThreadsLatch;
-    protected static BlockingQueue<ArrayList<String>> resultsBuffer = new LinkedBlockingQueue<>();
+    protected static WriteToCsv writeToCsv;
 
     public static void main(String[] args) throws InterruptedException {
         // Create new sheet for current test in results csv file
         String sheetName = "JS-T2-10TG";
+        String fileName = "LoadResults";
+
         CountDownLatch sheetCountDownLatch = new CountDownLatch(1);
-        new WriteToCsv().createNewSheetForLoadTest("testing", sheetName, sheetCountDownLatch);
+        writeToCsv = new WriteToCsv(fileName, sheetName, sheetCountDownLatch);
         sheetCountDownLatch.await();
 
         long start, end;
@@ -63,17 +70,17 @@ public class AlbumClient {
         SUCCESSFUL_REQ.set(0);
         FAILED_REQ.set(0);
         SUM_LATENCY_EACH_REQ.set(0);
-        resultsBuffer = new LinkedBlockingQueue<>();
+//        resultsBuffer = new LinkedBlockingQueue<>();
 
-        t = new Thread(new Consumer(maxThreads, resultsBuffer, "testing", sheetName));
-        t.start();
+//        t = new Thread(new Consumer(maxThreads, resultsBuffer, "testing", sheetName));
+//        t.start();
 
         // Load Server
         start = System.currentTimeMillis();
         loadServerPhase(numThreadGroups, threadGroupSize, delay, serverURL, callsPerThread, servicePool);
         end = System.currentTimeMillis();
 
-        t.join();
+//        t.join();
         printResults(numThreadGroups, threadGroupSize, callsPerThread, "Loading Server Phase", totalCalls, maxThreads, start, end);
     }
 
@@ -123,11 +130,11 @@ public class AlbumClient {
      *
      * @param numThreadGroups - The number of thread groups ran.
      * @param threadGroupSize - The number of threads created in each group.
-     * @param callsPerThread - The number of GET and POST requests each thread makes.
-     * @param totalCalls - The total requests made to the api.
-     * @param maxThreads - The maximum amount of threads that could be running at once.
-     * @param end        - The end time of the current phase.
-     * @param start      - The start time of the current phase.
+     * @param callsPerThread  - The number of GET and POST requests each thread makes.
+     * @param totalCalls      - The total requests made to the api.
+     * @param maxThreads      - The maximum amount of threads that could be running at once.
+     * @param end             - The end time of the current phase.
+     * @param start           - The start time of the current phase.
      */
     protected static void printResults(int numThreadGroups, int threadGroupSize, int callsPerThread, String currentPhase, int totalCalls, int maxThreads, long start, long end) {
         DecimalFormat decimalFormat = new DecimalFormat("#.##");
