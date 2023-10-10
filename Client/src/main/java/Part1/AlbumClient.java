@@ -29,10 +29,10 @@ public class AlbumClient {
         long delay = 2;
 
         // EC2 Server
-        String serverURL = "http://ec2-35-88-162-4.us-west-2.compute.amazonaws.com:8080/Server_Web";
+        String serverURL = "http://ec2-54-203-119-15.us-west-2.compute.amazonaws.com:8080/Server_Web";
 
         // Go Server
-//        String serverURL = "http://ec2-35-88-162-4.us-west-2.compute.amazonaws.com:8080/go";
+//        String serverURL = "http://ec2-54-203-119-15.us-west-2.compute.amazonaws.com:8080/go";
 
         // Thread calls and calculations
         int callsPerThread = 1000;
