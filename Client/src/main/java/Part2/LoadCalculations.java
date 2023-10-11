@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class LoadCalculations {
-  private List<Long> latencies;
+  private final List<Long> latencies;
 
   public LoadCalculations(List<Long> latencies) {
     Collections.sort(latencies);
