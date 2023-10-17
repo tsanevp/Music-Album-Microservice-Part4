@@ -60,7 +60,7 @@ func GetAlbumByKey(w http.ResponseWriter, r *http.Request) {
 func NewAlbum(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	err := r.ParseMultipartForm(0 << 20)
+	err := r.ParseMultipartForm(10 << 20)
 
 	if err != nil {
 		http.Error(w, "Unable to parse form", http.StatusBadRequest)

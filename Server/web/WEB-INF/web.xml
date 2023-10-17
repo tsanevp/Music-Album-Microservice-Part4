@@ -13,4 +13,8 @@
         <servlet-name>AlbumsServlet</servlet-name>
         <url-pattern>/albums/*</url-pattern>
     </servlet-mapping>
+
+    <listener>
+        <listener-class>MyServletContextListener</listener-class>
+    </listener>
 </web-app>
