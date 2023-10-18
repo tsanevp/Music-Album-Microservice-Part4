@@ -42,7 +42,7 @@ public class AlbumClient {
         long delay = 2;
 
         // EC2 Server
-        String serverURL = "http://localhost:8080/web_app";
+        String serverURL = "http://ec2-34-221-214-137.us-west-2.compute.amazonaws.com:8080/Server_Web";
 
         // Go Server
 //        String serverURL = "http://ec2-35-91-223-26.us-west-2.compute.amazonaws.com:8080/go";

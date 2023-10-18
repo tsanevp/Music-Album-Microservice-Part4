@@ -3,14 +3,12 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class DatabaseConnector {
-    private static final String DB_URL = "jdbc:mysql://localhost/a2";
-    private static final String DB_USER = "myuser";
-    private static final String DB_PASSWORD = "mypassword";
+    private static final String DB_URL = "jdbc:mysql://url/a2";
+    private static final String DB_USER = "";
+    private static final String DB_PASSWORD = "";
     private final Connection connection;
     public DatabaseConnector() {
         this.connection = connect();
-
-//        Runtime.getRuntime().addShutdownHook(new Thread(this::close));
     }
 
     public Connection getConnection() {
@@ -50,15 +48,4 @@ public class DatabaseConnector {
             }
         }
     }
-
-//    public static void main(String[] args) throws InterruptedException {
-//        new DatabaseConnector();
-//        Thread.sleep(5000);
-//        // You can now use the 'connection' object to execute SQL queries
-//        // Example:
-//        // Statement statement = connection.createStatement();
-//        // ResultSet resultSet = statement.executeQuery("SELECT * FROM your_table");
-//
-//        // Don't forget to close the connection when you're done
-//    }
 }

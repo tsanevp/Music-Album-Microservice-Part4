@@ -1,5 +1,3 @@
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.swagger.client.model.AlbumsProfile;
@@ -12,9 +10,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -31,7 +27,7 @@ public class AlbumsServlet extends HttpServlet {
     private Connection connection;
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
         res.setContentType("application/json");
         String urlPath = req.getPathInfo();
 
@@ -51,17 +47,8 @@ public class AlbumsServlet extends HttpServlet {
 
         String albumId = urlPath.split("/")[1];
 
-        String selectQuery = "SELECT JSON_EXTRACT(AlbumProfile, '$') AS AlbumData FROM albumRequests WHERE AlbumID = ?";
-        PreparedStatement preparedStatement = null;
         try {
-            connection = (Connection) getServletContext().getAttribute("connection");
-            preparedStatement = connection.prepareStatement(selectQuery);
-
-            // Set values for the prepared statement
-            preparedStatement.setString(1, albumId);
-
-            // Execute the insert statement
-            ResultSet resultSet = preparedStatement.executeQuery();
+            ResultSet resultSet = getAlbumProfile(albumId);
 
             if (resultSet.next()) {
                 res.setStatus(HttpServletResponse.SC_OK);
@@ -91,17 +78,70 @@ public class AlbumsServlet extends HttpServlet {
             return;
         }
 
-        // Check we have a valid image part
+        // Check we have a valid image part and album profile
         Part image = req.getPart("image");
         Part albumProfilePart = req.getPart("profile");
 
         if (image == null || !isImageContentType(image.getContentType()) || albumProfilePart == null) {
             res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            res.getWriter().write("Invalid or missing image OR missing album info");
+            res.getWriter().write("Invalid or missing image OR missing album profile");
             return;
         }
 
         // Parse album profile data
+        String[] albumProfileParsed = parseAlbumProfile(albumProfilePart);
+        String artist = albumProfileParsed[0];
+        String title = albumProfileParsed[1];
+        String year = albumProfileParsed[2];
+
+        // Ensure valid album profile data was passed
+        if (artist == null || title == null || year == null) {
+            res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            res.getWriter().write("Unable to parse album info");
+            return;
+        }
+
+        // Create UUID and get image size
+        String uuid = String.valueOf(UUID.randomUUID());
+        long imageSize = image.getSize();
+
+        // Create image data and profile json strings
+        String imageData = gson.toJson(new ImageMetaData().albumID(uuid).imageSize(String.valueOf(imageSize)));
+        String albumProfile = gson.toJson(new AlbumsProfile().artist(artist).title(title).year(year));
+
+        // Post image info and album profile to db
+        try {
+            int rowsAffected = postToDatabase(uuid, imageData, albumProfile);
+
+            if (rowsAffected > 0) {
+                res.setStatus(HttpServletResponse.SC_OK);
+                res.getWriter().write(imageData);
+            } else {
+                res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                res.getWriter().write("Error when posting to database");
+            }
+        } catch (SQLException e) {
+            res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            res.getWriter().write("There was an error with the database");
+        }
+    }
+
+    private int postToDatabase(String uuid, String imageData, String albumProfile) throws SQLException {
+        connection = (Connection) getServletContext().getAttribute("connection");
+
+        String insertQuery = "INSERT INTO albumRequests (AlbumID, ImageData, AlbumProfile) VALUES (?, ?, ?)";
+        PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
+
+        // Set values for the prepared statement
+        preparedStatement.setString(1, uuid);
+        preparedStatement.setString(2, imageData);
+        preparedStatement.setString(3, albumProfile);
+
+        // Execute the insert statement
+        return preparedStatement.executeUpdate();
+    }
+
+    private String[] parseAlbumProfile(Part albumProfilePart) throws IOException {
         String jsonContent = new String(albumProfilePart.getInputStream().readAllBytes());
         String[] lines = jsonContent.split("\n");
         String artist = null;
@@ -122,44 +162,20 @@ public class AlbumsServlet extends HttpServlet {
             }
         }
 
-        if (artist == null || title == null || year == null) {
-            res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            res.getWriter().write("Unable to parse album info");
-            return;
-        }
+        return new String[]{artist, title, year};
+    }
 
-        // Create UUID and get image size
-        long imageSize = image.getSize();
-        String uuid = String.valueOf(UUID.randomUUID());
+    private ResultSet getAlbumProfile(String albumId) throws SQLException {
+        connection = (Connection) getServletContext().getAttribute("connection");
 
-        // Create image data and profile json strings
-        String imageData = gson.toJson(new ImageMetaData().albumID(uuid).imageSize(String.valueOf(imageSize)));
-        String albumProfile = gson.toJson(new AlbumsProfile().artist(artist).title(title).year(year));
+        String selectQuery = "SELECT JSON_EXTRACT(AlbumProfile, '$') AS AlbumData FROM albumRequests WHERE AlbumID = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(selectQuery);
 
-        String insertQuery = "INSERT INTO albumRequests (AlbumID, ImageData, AlbumProfile) VALUES (?, ?, ?)";
-        PreparedStatement preparedStatement = null;
-        try {
-            connection = (Connection) getServletContext().getAttribute("connection");
-            preparedStatement = connection.prepareStatement(insertQuery);
+        // Set values for the prepared statement
+        preparedStatement.setString(1, albumId);
 
-            // Set values for the prepared statement
-            preparedStatement.setString(1, uuid);
-            preparedStatement.setString(2, imageData);
-            preparedStatement.setString(3, albumProfile);
-
-            // Execute the insert statement
-            int rowsAffected = preparedStatement.executeUpdate();
-            if (rowsAffected > 0) {
-                res.setStatus(HttpServletResponse.SC_OK);
-                res.getWriter().write(imageData);
-            } else {
-                res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                res.getWriter().write("Error when posting to database");
-            }
-        } catch (SQLException e) {
-            res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            res.getWriter().write("There was an error with the database");
-        }
+        // Execute the insert statement
+        return preparedStatement.executeQuery();
     }
 
     /**
