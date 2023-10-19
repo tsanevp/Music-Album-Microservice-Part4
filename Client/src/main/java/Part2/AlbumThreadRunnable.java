@@ -68,6 +68,7 @@ public class AlbumThreadRunnable implements Runnable {
 
             start = System.currentTimeMillis();
             responseCode = makeApiRequest("GET", albumID);
+            System.out.println(responseCode.getData());
             end = System.currentTimeMillis();
             currentLatency = end - start;
 
@@ -105,7 +106,7 @@ public class AlbumThreadRunnable implements Runnable {
         while (attempts < maxRetries) {
             try {
                 response = isGetReq ? getAlbum(requestParameters) : postAlbum();
-
+                System.out.println(response.getStatusCode());
                 if (response.getStatusCode() == 200) {
                     this.successfulReq += 1;
                     return response;
