@@ -1,6 +1,5 @@
 package Part2;
 
-import com.squareup.okhttp.ResponseBody;
 import io.swagger.client.ApiException;
 import io.swagger.client.ApiResponse;
 import io.swagger.client.api.DefaultApi;
@@ -11,7 +10,6 @@ import io.swagger.client.model.ImageMetaData;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,7 +22,7 @@ public class AlbumThreadRunnable implements Runnable {
     private int successfulReq;
     private int failedReq;
     private long sumReqLatencies;
-//    private final ArrayList<String[]> threadResults;
+    //    private final ArrayList<String[]> threadResults;
     private final List<Long> latencies;
     private int counter;
 
@@ -32,7 +30,7 @@ public class AlbumThreadRunnable implements Runnable {
     /**
      * Class constructor used to create a thread runnable.
      *
-     * @param numReqs - The number of each request type the thread should send (GET vs. POST).
+     * @param numReqs   - The number of each request type the thread should send (GET vs. POST).
      * @param serverUrl - The server url each request should target.
      */
     public AlbumThreadRunnable(int numReqs, String serverUrl, boolean loadingServer) {
@@ -68,7 +66,6 @@ public class AlbumThreadRunnable implements Runnable {
 
             start = System.currentTimeMillis();
             responseCode = makeApiRequest("GET", albumID);
-            System.out.println(responseCode.getData());
             end = System.currentTimeMillis();
             currentLatency = end - start;
 
@@ -106,7 +103,6 @@ public class AlbumThreadRunnable implements Runnable {
         while (attempts < maxRetries) {
             try {
                 response = isGetReq ? getAlbum(requestParameters) : postAlbum();
-                System.out.println(response.getStatusCode());
                 if (response.getStatusCode() == 200) {
                     this.successfulReq += 1;
                     return response;

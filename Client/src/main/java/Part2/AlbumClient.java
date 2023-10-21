@@ -42,7 +42,9 @@ public class AlbumClient {
         long delay = 2;
 
         // EC2 Server
-        String serverURL = "http://ec2-54-202-90-124.us-west-2.compute.amazonaws.com:8080/ServerRedis_Web";
+//        String serverURL = "http://localhost:8080/yugabyteServer";
+        String serverURL = "http://localhost:8080/Server_Web_exploded"; // mysql
+
 
         // Go Server
 //        String serverURL = "http://ec2-35-91-223-26.us-west-2.compute.amazonaws.com:8080/go";

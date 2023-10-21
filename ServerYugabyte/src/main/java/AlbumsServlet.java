@@ -1,6 +1,5 @@
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.zaxxer.hikari.HikariDataSource;
 import io.swagger.client.model.AlbumsProfile;
 import io.swagger.client.model.ImageMetaData;
 
@@ -24,18 +23,16 @@ import java.util.regex.Pattern;
         maxFileSize = 1024 * 1024 * 50,        // 50 MB
         maxRequestSize = 1024 * 1024 * 100)    // 100 MB
 public class AlbumsServlet extends HttpServlet {
+
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private Connection connection;
-
-    HikariDataSource connectionPool;
-    //    HikariDataSource connectionPool = (HikariDataSource) getServletContext().getAttribute("connectionPool");
 
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
         res.setContentType("application/json");
         String urlPath = req.getPathInfo();
-        System.out.println();
+
         // Check we have url
         if (urlPath == null || urlPath.isEmpty()) {
             res.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -52,14 +49,12 @@ public class AlbumsServlet extends HttpServlet {
 
         String albumId = urlPath.split("/")[1];
 
-        connectionPool = (HikariDataSource) getServletContext().getAttribute("connectionPool");
-        try (Connection connection = connectionPool.getConnection()) {
-//        try {
-            ResultSet resultSet = getAlbumProfile(connection, albumId);
+        try {
+            ResultSet resultSet = getAlbumProfile(albumId);
 
             if (resultSet.next()) {
                 res.setStatus(HttpServletResponse.SC_OK);
-                res.getWriter().write(resultSet.getString("AlbumData"));
+                res.getWriter().write(resultSet.getString("albumProfile"));
             } else {
                 // Album id does not exist in DB
                 res.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -74,7 +69,6 @@ public class AlbumsServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
         res.setContentType("application/json");
-
         String urlPath = req.getPathInfo();
         String servletPath = req.getServletPath();
 
@@ -116,12 +110,9 @@ public class AlbumsServlet extends HttpServlet {
         String imageData = gson.toJson(new ImageMetaData().albumID(uuid).imageSize(String.valueOf(imageSize)));
         String albumProfile = gson.toJson(new AlbumsProfile().artist(artist).title(title).year(year));
 
-        // Post image info and album profile to db
-        connectionPool = (HikariDataSource) getServletContext().getAttribute("connectionPool");
-
-        try (Connection connection = connectionPool.getConnection()) {
-//        try {
-            int rowsAffected = postToDatabase(connection, uuid, imageData, albumProfile);
+       // Post image info and album profile to db
+        try {
+            int rowsAffected = postToDatabase(uuid, imageData, albumProfile);
 
             if (rowsAffected > 0) {
                 res.setStatus(HttpServletResponse.SC_OK);
@@ -136,8 +127,20 @@ public class AlbumsServlet extends HttpServlet {
         }
     }
 
-    private int postToDatabase(Connection connection, String uuid, String imageData, String albumProfile) throws SQLException {
-//        connection = (Connection) getServletContext().getAttribute("connection");
+    private ResultSet getAlbumProfile(String albumId) throws SQLException {
+        connection = (Connection) getServletContext().getAttribute("connection");
+        String selectQuery = "SELECT albumProfile FROM albumRequests WHERE albumid = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(selectQuery);
+
+        // Set values for the prepared statement
+        preparedStatement.setString(1, albumId);
+
+        // Execute the insert statement
+        return preparedStatement.executeQuery();
+    }
+
+    private int postToDatabase(String uuid, String imageData, String albumProfile) throws SQLException {
+        connection = (Connection) getServletContext().getAttribute("connection");
 
         String insertQuery = "INSERT INTO albumRequests (AlbumID, ImageData, AlbumProfile) VALUES (?, ?, ?)";
         PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
@@ -175,19 +178,6 @@ public class AlbumsServlet extends HttpServlet {
         return new String[]{artist, title, year};
     }
 
-    private ResultSet getAlbumProfile(Connection connection, String albumId) throws SQLException {
-//        connection = (Connection) getServletContext().getAttribute("connection");
-
-        String selectQuery = "SELECT JSON_EXTRACT(AlbumProfile, '$') AS AlbumData FROM albumRequests WHERE AlbumID = ?";
-        PreparedStatement preparedStatement = connection.prepareStatement(selectQuery);
-
-        // Set values for the prepared statement
-        preparedStatement.setString(1, albumId);
-
-        // Execute the insert statement
-        return preparedStatement.executeQuery();
-    }
-
     /**
      * Method to check an image file was sent in POST request.
      *
@@ -220,8 +210,7 @@ public class AlbumsServlet extends HttpServlet {
      * Enum constants that represent different possible endpoints
      */
     private enum Endpoint {
-        POST_NEW_ALBUM(Pattern.compile("/albums")),
-        GET_ALBUM_BY_KEY(Pattern.compile("^/[^/]+$"));
+        POST_NEW_ALBUM(Pattern.compile("/albums")), GET_ALBUM_BY_KEY(Pattern.compile("^/[^/]+$"));
 
         public final Pattern pattern;
 

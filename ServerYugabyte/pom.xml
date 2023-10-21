@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.apache.maven</groupId>
-    <artifactId>ServerRedis</artifactId>
+    <artifactId>ServerYugabyte</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -40,10 +40,20 @@
             <version>2.10.1</version>
         </dependency>
         <dependency>
-            <groupId>redis.clients</groupId>
-            <artifactId>jedis</artifactId>
-            <version>5.0.0-alpha2</version>
+            <groupId>com.yugabyte</groupId>
+            <artifactId>java-driver-core</artifactId>
+            <version>4.6.0-yb-6</version>
         </dependency>
-
+        <dependency>
+            <groupId>com.yugabyte</groupId>
+            <artifactId>jdbc-yugabytedb</artifactId>
+            <version>42.3.0</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.zaxxer/HikariCP -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>4.0.3</version>
+        </dependency>
     </dependencies>
 </project>
