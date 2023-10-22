@@ -1,9 +1,12 @@
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.zaxxer.hikari.HikariDataSource;
 import io.swagger.client.model.AlbumsProfile;
 import io.swagger.client.model.ImageMetaData;
 
+import java.io.InputStream;
+import java.util.regex.Matcher;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
@@ -35,7 +38,7 @@ public class AlbumsServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
         res.setContentType("application/json");
         String urlPath = req.getPathInfo();
-        System.out.println();
+
         // Check we have url
         if (urlPath == null || urlPath.isEmpty()) {
             res.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -59,7 +62,7 @@ public class AlbumsServlet extends HttpServlet {
 
             if (resultSet.next()) {
                 res.setStatus(HttpServletResponse.SC_OK);
-                res.getWriter().write(resultSet.getString("AlbumData"));
+                res.getWriter().write(resultSet.getString("AlbumProfile"));
             } else {
                 // Album id does not exist in DB
                 res.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -152,7 +155,22 @@ public class AlbumsServlet extends HttpServlet {
     }
 
     private String[] parseAlbumProfile(Part albumProfilePart) throws IOException {
+//        ObjectMapper objectMapper = new ObjectMapper();
+//        try (InputStream inputStream = albumProfilePart.getInputStream()) {
+//            System.out.println(inputStream);
+//            AlbumsProfile albumsProfile = objectMapper.readValue(preprocessData(albumProfilePart.getInputStream().toString()), AlbumsProfile.class);
+//            System.out.println(albumsProfile.getTitle());
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+
+//        AlbumsProfile albumsProfile = gson.fromJson(albumProfilePart.getInputStream().toString().replaceAll("class AlbumsProfile ", ""), AlbumsProfile.class);
+//        System.out.println(albumsProfile.getYear());
+
+
         String jsonContent = new String(albumProfilePart.getInputStream().readAllBytes());
+
+//                AlbumsProfile albumsProfile = (AlbumsProfile) albumProfilePart.getInputStream().readAllBytes().toString();
         String[] lines = jsonContent.split("\n");
         String artist = null;
         String title = null;
@@ -178,7 +196,9 @@ public class AlbumsServlet extends HttpServlet {
     private ResultSet getAlbumProfile(Connection connection, String albumId) throws SQLException {
 //        connection = (Connection) getServletContext().getAttribute("connection");
 
-        String selectQuery = "SELECT JSON_EXTRACT(AlbumProfile, '$') AS AlbumData FROM albumRequests WHERE AlbumID = ?";
+//        String selectQuery = "SELECT JSON_EXTRACT(AlbumProfile, '$') AS AlbumData FROM albumRequests WHERE AlbumID = ?";
+        String selectQuery = "SELECT AlbumProfile FROM albumRequests WHERE AlbumID = ?";
+
         PreparedStatement preparedStatement = connection.prepareStatement(selectQuery);
 
         // Set values for the prepared statement
@@ -229,4 +249,24 @@ public class AlbumsServlet extends HttpServlet {
             this.pattern = pattern;
         }
     }
+//    public String preprocessData(String inputData) {
+//        // Use a regular expression to match "class" and the class name
+//        Pattern pattern = Pattern.compile("class\\s+(\\w+)\\s*\\{(.+?)}", Pattern.DOTALL);
+//        Matcher matcher = pattern.matcher(inputData);
+//
+//        if (matcher.find()) {
+//            String className = matcher.group(1);
+//            // Extract the content within the curly braces
+//            String content = matcher.group(2);
+//
+//            // Replace "key: value" with "key": "value" to make it valid JSON
+//            content = content.replaceAll("(\\w+):\\s+([^\\n]+)", "\"$1\": \"$2\"");
+//
+//            // Wrap the content in curly braces to create valid JSON and include the class name
+//            return "{\"" + className + "\": {" + content + "}}";
+//        }
+//
+//        return null; // Invalid input format
+//    }
+
 }

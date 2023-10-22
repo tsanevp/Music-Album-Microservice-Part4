@@ -56,7 +56,6 @@ public class AlbumThreadRunnable implements Runnable {
 
             start = System.currentTimeMillis();
             responseCode = makeApiRequest("POST", null);
-            String albumID = getPostUUID(responseCode);
             end = System.currentTimeMillis();
             currentLatency = end - start;
 
@@ -65,7 +64,7 @@ public class AlbumThreadRunnable implements Runnable {
 //            threadResults.add(new String[]{String.valueOf(start), "POST", String.valueOf((end - start)), String.valueOf(responseCode)});
 
             start = System.currentTimeMillis();
-            responseCode = makeApiRequest("GET", albumID);
+            responseCode = makeApiRequest("GET", getPostUUID(responseCode));
             end = System.currentTimeMillis();
             currentLatency = end - start;
 
@@ -143,19 +142,7 @@ public class AlbumThreadRunnable implements Runnable {
     }
 
     private String getPostUUID(ApiResponse<?> response) {
-        String jsonContent = response.getData().toString();
-
-        // Define a regular expression to match the albumID value
-        Pattern pattern = Pattern.compile("albumID:\\s*([^\\n]+)");
-
-        Matcher matcher = pattern.matcher(jsonContent);
-
-        String albumID = null;
-
-        while (matcher.find()) {
-            albumID = matcher.group(1).trim();
-        }
-
-        return albumID;
+        ImageMetaData imageMetaData = (ImageMetaData) response.getData();
+        return imageMetaData.getAlbumID();
     }
 }

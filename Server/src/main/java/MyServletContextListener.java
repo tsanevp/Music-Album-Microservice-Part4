@@ -23,7 +23,11 @@ public class MyServletContextListener implements ServletContextListener {
             config.setJdbcUrl("jdbc:mysql://localhost:3306/a2");
             config.setUsername("root");
             config.setPassword("adminadmin");
-            config.setMaximumPoolSize(10);
+
+//            config.setJdbcUrl("jdbc:mysql://db1.cklnkwnnivsg.us-west-2.rds.amazonaws.com:3306/a2db1");
+//            config.setUsername("admin");
+//            config.setPassword("adminpassword");
+            config.setMaximumPoolSize(300);
 
             dataSource = new HikariDataSource(config);
 
