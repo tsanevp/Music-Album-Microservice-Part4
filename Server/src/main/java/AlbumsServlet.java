@@ -1,12 +1,9 @@
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.zaxxer.hikari.HikariDataSource;
 import io.swagger.client.model.AlbumsProfile;
 import io.swagger.client.model.ImageMetaData;
 
-import java.io.InputStream;
-import java.util.regex.Matcher;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
@@ -16,10 +13,10 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.UUID;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @WebServlet(name = "AlbumsServlet", value = "/albums/*")
@@ -28,11 +25,16 @@ import java.util.regex.Pattern;
         maxRequestSize = 1024 * 1024 * 100)    // 100 MB
 public class AlbumsServlet extends HttpServlet {
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-    private Connection connection;
+    private MySQLService mySQLService;
+    private HikariDataSource connectionPool;
+    private AlbumController albumController;
 
-    HikariDataSource connectionPool;
-    //    HikariDataSource connectionPool = (HikariDataSource) getServletContext().getAttribute("connectionPool");
-
+    @Override
+    public void init() {
+        this.albumController = new AlbumController();
+        this.mySQLService = new MySQLService();
+        this.connectionPool = this.mySQLService.getConnectionPool();
+    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
@@ -55,10 +57,8 @@ public class AlbumsServlet extends HttpServlet {
 
         String albumId = urlPath.split("/")[1];
 
-        connectionPool = (HikariDataSource) getServletContext().getAttribute("connectionPool");
-        try (Connection connection = connectionPool.getConnection()) {
-//        try {
-            ResultSet resultSet = getAlbumProfile(connection, albumId);
+        try (Connection connection = this.connectionPool.getConnection()) {
+            ResultSet resultSet = this.albumController.getAlbumProfile(connection, albumId);
 
             if (resultSet.next()) {
                 res.setStatus(HttpServletResponse.SC_OK);
@@ -88,10 +88,10 @@ public class AlbumsServlet extends HttpServlet {
             return;
         }
 
-        // Check we have a valid image part and album profile
         Part image = req.getPart("image");
         Part albumProfilePart = req.getPart("profile");
 
+        // Check we have a valid image part and album profile
         if (image == null || !isImageContentType(image.getContentType()) || albumProfilePart == null) {
             res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             res.getWriter().write("Invalid or missing image OR missing album profile");
@@ -113,18 +113,15 @@ public class AlbumsServlet extends HttpServlet {
 
         // Create UUID and get image size
         String uuid = String.valueOf(UUID.randomUUID());
-        long imageSize = image.getSize();
+        String imageSize = String.valueOf(image.getSize());
 
         // Create image data and profile json strings
-        String imageData = gson.toJson(new ImageMetaData().albumID(uuid).imageSize(String.valueOf(imageSize)));
+        String imageData = gson.toJson(new ImageMetaData().albumID(uuid).imageSize(imageSize));
         String albumProfile = gson.toJson(new AlbumsProfile().artist(artist).title(title).year(year));
 
         // Post image info and album profile to db
-        connectionPool = (HikariDataSource) getServletContext().getAttribute("connectionPool");
-
-        try (Connection connection = connectionPool.getConnection()) {
-//        try {
-            int rowsAffected = postToDatabase(connection, uuid, imageData, albumProfile);
+        try (Connection connection = this.connectionPool.getConnection()) {
+            int rowsAffected = this.albumController.postToDatabase(connection, uuid, imageData, albumProfile);
 
             if (rowsAffected > 0) {
                 res.setStatus(HttpServletResponse.SC_OK);
@@ -139,73 +136,46 @@ public class AlbumsServlet extends HttpServlet {
         }
     }
 
-    private int postToDatabase(Connection connection, String uuid, String imageData, String albumProfile) throws SQLException {
-//        connection = (Connection) getServletContext().getAttribute("connection");
-
-        String insertQuery = "INSERT INTO albumRequests (AlbumID, ImageData, AlbumProfile) VALUES (?, ?, ?)";
-        PreparedStatement preparedStatement = connection.prepareStatement(insertQuery);
-
-        // Set values for the prepared statement
-        preparedStatement.setString(1, uuid);
-        preparedStatement.setString(2, imageData);
-        preparedStatement.setString(3, albumProfile);
-
-        // Execute the insert statement
-        return preparedStatement.executeUpdate();
-    }
-
+    /**
+     * Parse the album profile to extract the artist, title, and year information from the form part.
+     *
+     * @param albumProfilePart - The albumProfile details in multipart form format.
+     * @return - A string array of the album profile information.
+     * @throws IOException - If there was an error reading the input stream.
+     */
     private String[] parseAlbumProfile(Part albumProfilePart) throws IOException {
-//        ObjectMapper objectMapper = new ObjectMapper();
-//        try (InputStream inputStream = albumProfilePart.getInputStream()) {
-//            System.out.println(inputStream);
-//            AlbumsProfile albumsProfile = objectMapper.readValue(preprocessData(albumProfilePart.getInputStream().toString()), AlbumsProfile.class);
-//            System.out.println(albumsProfile.getTitle());
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-
-//        AlbumsProfile albumsProfile = gson.fromJson(albumProfilePart.getInputStream().toString().replaceAll("class AlbumsProfile ", ""), AlbumsProfile.class);
-//        System.out.println(albumsProfile.getYear());
-
-
+        // Read the input stream as a string
         String jsonContent = new String(albumProfilePart.getInputStream().readAllBytes());
 
-//                AlbumsProfile albumsProfile = (AlbumsProfile) albumProfilePart.getInputStream().readAllBytes().toString();
-        String[] lines = jsonContent.split("\n");
-        String artist = null;
-        String title = null;
-        String year = null;
+        // Define regular expressions to capture the key-value pairs
+        String artistRegex = "artist: (.*?)\\n";
+        String titleRegex = "title: (.*?)\\n";
+        String yearRegex = "year: (.*?)\\n";
 
-        for (String line : lines) {
-            String[] parts = line.trim().split(":");
-            if (parts.length == 2) {
-                String key = parts[0].trim();
-                String value = parts[1].trim();
-
-                switch (key) {
-                    case "artist" -> artist = value;
-                    case "title" -> title = value;
-                    case "year" -> year = value;
-                }
-            }
-        }
+        // Extract values using regular expressions
+        String artist = extractValue(jsonContent, artistRegex);
+        String title = extractValue(jsonContent, titleRegex);
+        String year = extractValue(jsonContent, yearRegex);
 
         return new String[]{artist, title, year};
     }
 
-    private ResultSet getAlbumProfile(Connection connection, String albumId) throws SQLException {
-//        connection = (Connection) getServletContext().getAttribute("connection");
+    /**
+     * Uses the passed regex pattern to pull album info from the string.
+     *
+     * @param input - The current line of the album profile string.
+     * @param regex - The regex pattern to search for.
+     * @return - The album profile attribute if a match is found, else return null.
+     */
+    private String extractValue(String input, String regex) {
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(input);
 
-//        String selectQuery = "SELECT JSON_EXTRACT(AlbumProfile, '$') AS AlbumData FROM albumRequests WHERE AlbumID = ?";
-        String selectQuery = "SELECT AlbumProfile FROM albumRequests WHERE AlbumID = ?";
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
 
-        PreparedStatement preparedStatement = connection.prepareStatement(selectQuery);
-
-        // Set values for the prepared statement
-        preparedStatement.setString(1, albumId);
-
-        // Execute the insert statement
-        return preparedStatement.executeQuery();
+        return null;
     }
 
     /**
@@ -240,8 +210,7 @@ public class AlbumsServlet extends HttpServlet {
      * Enum constants that represent different possible endpoints
      */
     private enum Endpoint {
-        POST_NEW_ALBUM(Pattern.compile("/albums")),
-        GET_ALBUM_BY_KEY(Pattern.compile("^/[^/]+$"));
+        POST_NEW_ALBUM(Pattern.compile("/albums")), GET_ALBUM_BY_KEY(Pattern.compile("^/[^/]+$"));
 
         public final Pattern pattern;
 
@@ -249,24 +218,9 @@ public class AlbumsServlet extends HttpServlet {
             this.pattern = pattern;
         }
     }
-//    public String preprocessData(String inputData) {
-//        // Use a regular expression to match "class" and the class name
-//        Pattern pattern = Pattern.compile("class\\s+(\\w+)\\s*\\{(.+?)}", Pattern.DOTALL);
-//        Matcher matcher = pattern.matcher(inputData);
-//
-//        if (matcher.find()) {
-//            String className = matcher.group(1);
-//            // Extract the content within the curly braces
-//            String content = matcher.group(2);
-//
-//            // Replace "key: value" with "key": "value" to make it valid JSON
-//            content = content.replaceAll("(\\w+):\\s+([^\\n]+)", "\"$1\": \"$2\"");
-//
-//            // Wrap the content in curly braces to create valid JSON and include the class name
-//            return "{\"" + className + "\": {" + content + "}}";
-//        }
-//
-//        return null; // Invalid input format
-//    }
 
+    @Override
+    public void destroy() {
+        mySQLService.close();
+    }
 }
