@@ -38,17 +38,12 @@ public class AlbumClient {
 
         // Define starting constants
         int threadGroupSize = 10;
-        int numThreadGroups = 30;
+        int numThreadGroups = 10;
         long delay = 2;
 
         // EC2 Server
-//        String serverURL = "http://localhost:8080/yugabyteServer";
 //        String serverURL = "http://CS6650-network-lb-acaafa34b4ad7371.elb.us-west-2.amazonaws.com/Server_Web"; // mysql
         String serverURL = "http://localhost:8080/Server_Web_exploded"; // mysql
-
-
-        // Go Server
-//        String serverURL = "http://ec2-35-91-223-26.us-west-2.compute.amazonaws.com:8080/go";
 
         // Thread calls and calculations
         int callsPerThread = 1000;
@@ -65,20 +60,20 @@ public class AlbumClient {
         end = System.currentTimeMillis();
         printResults(1, INITIAL_THREAD_COUNT, INITIAL_CALLS_PER_THREAD, "Initialization Phase Results", INITIAL_THREAD_COUNT * INITIAL_CALLS_PER_THREAD * 2, INITIAL_THREAD_COUNT, start, end);
 
-//        // Redefining tracking variables for server loading phase
-//        totalThreadsLatch = new CountDownLatch(maxThreads);
-//        SUCCESSFUL_REQ.set(0);
-//        FAILED_REQ.set(0);
-//        SUM_LATENCY_EACH_REQ.set(0);
-//
-//        // Load Server
-//        start = System.currentTimeMillis();
-//        loadServerPhase(numThreadGroups, threadGroupSize, delay, serverURL, callsPerThread, servicePool);
-//        end = System.currentTimeMillis();
-//
-//
-////        writeToCsv.writeLoadTestResultsToSheet();
-//        printResults(numThreadGroups, threadGroupSize, callsPerThread, currentPhase, totalCalls, maxThreads, start, end);
+        // Redefining tracking variables for server loading phase
+        totalThreadsLatch = new CountDownLatch(maxThreads);
+        SUCCESSFUL_REQ.set(0);
+        FAILED_REQ.set(0);
+        SUM_LATENCY_EACH_REQ.set(0);
+
+        // Load Server
+        start = System.currentTimeMillis();
+        loadServerPhase(numThreadGroups, threadGroupSize, delay, serverURL, callsPerThread, servicePool);
+        end = System.currentTimeMillis();
+
+
+//        writeToCsv.writeLoadTestResultsToSheet();
+        printResults(numThreadGroups, threadGroupSize, callsPerThread, currentPhase, totalCalls, maxThreads, start, end);
     }
 
     /**
@@ -120,7 +115,6 @@ public class AlbumClient {
             servicePool.execute(new AlbumThreadRunnable(INITIAL_CALLS_PER_THREAD, serverURL, false));
         }
         totalThreadsLatch.await();
-        servicePool.shutdown();
     }
 
     /**
