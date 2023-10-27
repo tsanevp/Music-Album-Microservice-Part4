@@ -34,16 +34,16 @@ public class AlbumClient {
 
         long start, end;
         int testNum = 1;
-        String currentPhase = "Loading Java Server Phase (Test #" + testNum + ")";
+        String currentPhase = "Loading Java Server Phase - App Load Balancer - 2 Servlets, 1 DB";
 
         // Define starting constants
         int threadGroupSize = 10;
-        int numThreadGroups = 10;
+        int numThreadGroups = 30;
         long delay = 2;
 
         // EC2 Server
-//        String serverURL = "http://CS6650-network-lb-acaafa34b4ad7371.elb.us-west-2.amazonaws.com/Server_Web"; // mysql
-        String serverURL = "http://localhost:8080/Server_Web_exploded"; // mysql
+        String serverURL = "http://CS6650-app-lb-1902011158.us-west-2.elb.amazonaws.com/Server_Web"; // mysql
+//        String serverURL = "http://localhost:8080/Server_Web_exploded"; // mysql
 
         // Thread calls and calculations
         int callsPerThread = 1000;

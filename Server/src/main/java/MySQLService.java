@@ -3,9 +3,9 @@ import com.zaxxer.hikari.HikariDataSource;
 
 public class MySQLService {
     //        private static final String DB_URL = "jdbc:mysql://db1.cklnkwnnivsg.us-west-2.rds.amazonaws.com:3306/a2db1";
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/a2";
-    private static final String DB_USER = "root";
-    private static final String DB_PASSWORD = "adminadmin";
+    private static final String DB_URL = "jdbc:mysql://:3306/a2db1";
+    private static final String DB_USER = "";
+    private static final String DB_PASSWORD = "";
     private final HikariDataSource connectionPool;
 
     /**
@@ -39,7 +39,7 @@ public class MySQLService {
             config.setUsername(DB_USER);
             config.setPassword(DB_PASSWORD);
             config.setMinimumIdle(10);
-            config.setMaximumPoolSize(145);
+            config.setMaximumPoolSize(29);
 
             connectionPool = new HikariDataSource(config);
             System.out.println("connected to db");

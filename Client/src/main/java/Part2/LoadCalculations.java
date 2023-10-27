@@ -34,7 +34,7 @@ public class LoadCalculations {
 
   public long getPercentile(int percentile) {
     int size = this.latencies.size();
-    int percentileIndex = (int) Math.ceil((percentile / 100) * size);
+    int percentileIndex = (int) Math.ceil((percentile / 100.0) * size);
 
     return this.latencies.get(percentileIndex);
   }
