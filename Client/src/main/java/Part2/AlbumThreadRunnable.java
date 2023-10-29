@@ -41,7 +41,6 @@ public class AlbumThreadRunnable implements Runnable {
         this.successfulReq = 0;
         this.failedReq = 0;
         this.sumReqLatencies = 0;
-//        this.threadResults = new ArrayList<>();
         this.latencies = new ArrayList<>();
         this.counter = 1999;
     }
@@ -54,6 +53,7 @@ public class AlbumThreadRunnable implements Runnable {
         // Perform 1000 POST & GET requests
         for (int k = 0; k < this.numReqs; k++) {
 
+            // Make POST request
             start = System.currentTimeMillis();
             responseCode = makeApiRequest("POST", null);
             end = System.currentTimeMillis();
@@ -61,18 +61,15 @@ public class AlbumThreadRunnable implements Runnable {
 
             this.sumReqLatencies += currentLatency;
             this.latencies.add(currentLatency);
-//            threadResults.add(new String[]{String.valueOf(start), "POST", String.valueOf((end - start)), String.valueOf(responseCode)});
 
+            // Make GET request
             start = System.currentTimeMillis();
-            responseCode = makeApiRequest("GET", getPostUUID(responseCode));
+            makeApiRequest("GET", getPostUUID(responseCode));
             end = System.currentTimeMillis();
             currentLatency = end - start;
 
             this.sumReqLatencies += currentLatency;
             this.latencies.add(currentLatency);
-//            threadResults.add(new String[]{String.valueOf(start), "GET", String.valueOf((end - start)), String.valueOf(responseCode)});
-
-
         }
 
         // Bulk update variables that are tracked
@@ -81,10 +78,6 @@ public class AlbumThreadRunnable implements Runnable {
         AlbumClient.SUM_LATENCY_EACH_REQ.addAndGet(this.sumReqLatencies);
         AlbumClient.latencies.addAll(this.latencies);
         AlbumClient.totalThreadsLatch.countDown();
-
-//        if (this.loadingServer) {
-//            writeToCsv.addThreadResults(threadResults);
-//        }
     }
 
     /**
@@ -141,6 +134,12 @@ public class AlbumThreadRunnable implements Runnable {
         return this.albumsApi.newAlbumWithHttpInfo(image, profile);
     }
 
+    /**
+     * Method to get the UUID from the POST response.
+     *
+     * @param response - The POST response.
+     * @return - The UUID to use in the GET request.
+     */
     private String getPostUUID(ApiResponse<?> response) {
         ImageMetaData imageMetaData = (ImageMetaData) response.getData();
         return imageMetaData.getAlbumID();

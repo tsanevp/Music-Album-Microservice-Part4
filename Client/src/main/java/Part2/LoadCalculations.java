@@ -18,7 +18,7 @@ public class LoadCalculations {
   public double getMedianResponseTime() {
     int size = this.latencies.size();
     if (size % 2 == 0) {
-      return (this.latencies.get(size / 2) + this.latencies.get(size / 2)) / 2;
+      return (this.latencies.get(size / 2) + this.latencies.get(size / 2)) / 2.0;
     }
 
     return this.latencies.get(size / 2);
