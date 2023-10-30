@@ -8,7 +8,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static java.lang.Thread.sleep;
 
@@ -17,9 +16,8 @@ public class AlbumClient {
     private static final int INITIAL_CALLS_PER_THREAD = 100;
     protected static final AtomicInteger SUCCESSFUL_REQ = new AtomicInteger(0);
     protected static final AtomicInteger FAILED_REQ = new AtomicInteger(0);
-
-    protected static final AtomicLong SUM_LATENCY_EACH_REQ = new AtomicLong(0);
-    protected static List<Long> latencies = Collections.synchronizedList(new ArrayList<>());
+    protected static List<Long> latenciesPost = Collections.synchronizedList(new ArrayList<>());
+    protected static List<Long> latenciesGet = Collections.synchronizedList(new ArrayList<>());
     protected static CountDownLatch totalThreadsLatch;
 
     public static void main(String[] args) throws InterruptedException {
@@ -36,7 +34,6 @@ public class AlbumClient {
         // Thread calls and calculations
         int callsPerThread = 1000;
         int maxThreads = threadGroupSize * numThreadGroups;
-        int totalCalls = maxThreads * callsPerThread * 2;
 
         // Executor service used for thread pooling and countdown latch to track when loading is complete
         ExecutorService servicePool = Executors.newFixedThreadPool(maxThreads);
@@ -48,18 +45,15 @@ public class AlbumClient {
 //        end = System.currentTimeMillis();
 //        printResults(1, INITIAL_THREAD_COUNT, INITIAL_CALLS_PER_THREAD, "Initialization Phase Results", INITIAL_THREAD_COUNT * INITIAL_CALLS_PER_THREAD * 2, INITIAL_THREAD_COUNT, start, end);
 
-        // Redefining tracking variables for server loading phase
+        // Redefine countdown latch for server loading phase
         totalThreadsLatch = new CountDownLatch(maxThreads);
-        SUCCESSFUL_REQ.set(0);
-        FAILED_REQ.set(0);
-        SUM_LATENCY_EACH_REQ.set(0);
 
         // Load Server
         start = System.currentTimeMillis();
         loadServerPhase(numThreadGroups, threadGroupSize, delay, serverURL, callsPerThread, servicePool);
         end = System.currentTimeMillis();
 
-        printResults(numThreadGroups, threadGroupSize, callsPerThread, currentPhase, totalCalls, maxThreads, start, end);
+        printResults(numThreadGroups, threadGroupSize, callsPerThread, currentPhase, start, end);
     }
 
     /**
@@ -77,7 +71,7 @@ public class AlbumClient {
     private static void loadServerPhase(int numThreadGroups, int threadGroupSize, long delay, String serverURL, int callsPerThread, ExecutorService servicePool) throws InterruptedException {
         for (int i = 0; i < numThreadGroups; i++) {
             for (int j = 0; j < threadGroupSize; j++) {
-                servicePool.execute(new AlbumThreadRunnable(callsPerThread, serverURL, true));
+                servicePool.execute(new AlbumThreadRunnable(callsPerThread, serverURL, false));
             }
 
             // Sleep for delay amount of time, converted to seconds
@@ -98,7 +92,7 @@ public class AlbumClient {
      */
     private static void initializationPhase(ExecutorService servicePool, String serverURL) throws InterruptedException {
         for (int i = 0; i < INITIAL_THREAD_COUNT; i++) {
-            servicePool.execute(new AlbumThreadRunnable(INITIAL_CALLS_PER_THREAD, serverURL, false));
+            servicePool.execute(new AlbumThreadRunnable(INITIAL_CALLS_PER_THREAD, serverURL, true));
         }
         totalThreadsLatch.await();
     }
@@ -109,13 +103,14 @@ public class AlbumClient {
      * @param numThreadGroups - The number of thread groups ran.
      * @param threadGroupSize - The number of threads created in each group.
      * @param callsPerThread  - The number of GET and POST requests each thread makes.
-     * @param totalCalls      - The total requests made to the api.
-     * @param maxThreads      - The maximum amount of threads that could be running at once.
+     * @param currentPhase    - The name of the current loading phase.
      * @param end             - The end time of the current phase.
      * @param start           - The start time of the current phase.
      */
-    protected static void printResults(int numThreadGroups, int threadGroupSize, int callsPerThread, String currentPhase, int totalCalls, int maxThreads, long start, long end) {
-        LoadCalculations loadCalculations = new LoadCalculations(latencies);
+    protected static void printResults(int numThreadGroups, int threadGroupSize, int callsPerThread, String currentPhase, long start, long end) {
+        LoadCalculations loadCalculationsPost = new LoadCalculations(latenciesPost);
+        LoadCalculations loadCalculationsGet = new LoadCalculations(latenciesGet);
+
         DecimalFormat decimalFormat = new DecimalFormat("#.##");
         double wallTime = (end - start) * 0.001;
 
@@ -129,12 +124,25 @@ public class AlbumClient {
         System.out.println("Throughput: " + decimalFormat.format(SUCCESSFUL_REQ.get() / wallTime) + " (req/sec) ---> total successful requests / wall time");
         System.out.println("Wall Time: " + decimalFormat.format(wallTime) + " (sec)\n");
         System.out.println("---- Calculations ----");
+        System.out.println("-- POST Requests --");
+        printCalculations(decimalFormat, loadCalculationsPost);
+        System.out.println("-- GET Requests --");
+        printCalculations(decimalFormat, loadCalculationsGet);
+        System.out.println("-------- End of Results For " + currentPhase + " --------");
+        System.out.println("-----------------------------------------------------------------------------------------");
+    }
+
+    /**
+     * Print out the calculations for the request type.
+     *
+     * @param decimalFormat    - The decimal format to print the results.
+     * @param loadCalculations - The results for either POST or GET requests.
+     */
+    private static void printCalculations(DecimalFormat decimalFormat, LoadCalculations loadCalculations) {
         System.out.println("Mean Response Time: " + decimalFormat.format(loadCalculations.getMeanResponseTime()) + " (ms)");
         System.out.println("Median Response Time: " + decimalFormat.format(loadCalculations.getMedianResponseTime()) + " (ms)");
         System.out.println("p99 Response Time: " + decimalFormat.format(loadCalculations.getPercentile(99)) + " (ms)");
         System.out.println("Min Response Time: " + decimalFormat.format(loadCalculations.getMin()) + " (ms)");
         System.out.println("Max Response Time: " + decimalFormat.format(loadCalculations.getMax()) + " (ms)");
-        System.out.println("-------- End of Results For " + currentPhase + " --------");
-        System.out.println("-----------------------------------------------------------------------------------------");
     }
 }

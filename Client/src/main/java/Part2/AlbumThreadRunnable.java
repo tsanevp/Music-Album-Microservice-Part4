@@ -10,20 +10,15 @@ import io.swagger.client.model.ImageMetaData;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-//import static Part2.AlbumClient.writeToCsv;
 
 public class AlbumThreadRunnable implements Runnable {
     private final int numReqs;
     private final DefaultApi albumsApi;
-    private final boolean loadingServer;
+    private final boolean initializationPhase;
     private int successfulReq;
     private int failedReq;
-    private long sumReqLatencies;
-    //    private final ArrayList<String[]> threadResults;
-    private final List<Long> latencies;
+    private final List<Long> latenciesPost;
+    private final List<Long> latenciesGet;
     private int counter;
 
 
@@ -33,15 +28,15 @@ public class AlbumThreadRunnable implements Runnable {
      * @param numReqs   - The number of each request type the thread should send (GET vs. POST).
      * @param serverUrl - The server url each request should target.
      */
-    public AlbumThreadRunnable(int numReqs, String serverUrl, boolean loadingServer) {
+    public AlbumThreadRunnable(int numReqs, String serverUrl, boolean initializationPhase) {
         this.numReqs = numReqs;
         this.albumsApi = new DefaultApi();
         this.albumsApi.getApiClient().setBasePath(serverUrl);
-        this.loadingServer = loadingServer;
+        this.initializationPhase = initializationPhase;
         this.successfulReq = 0;
         this.failedReq = 0;
-        this.sumReqLatencies = 0;
-        this.latencies = new ArrayList<>();
+        this.latenciesPost = new ArrayList<>();
+        this.latenciesGet = new ArrayList<>();
         this.counter = 1999;
     }
 
@@ -59,8 +54,7 @@ public class AlbumThreadRunnable implements Runnable {
             end = System.currentTimeMillis();
             currentLatency = end - start;
 
-            this.sumReqLatencies += currentLatency;
-            this.latencies.add(currentLatency);
+            this.latenciesPost.add(currentLatency);
 
             // Make GET request
             start = System.currentTimeMillis();
@@ -68,16 +62,22 @@ public class AlbumThreadRunnable implements Runnable {
             end = System.currentTimeMillis();
             currentLatency = end - start;
 
-            this.sumReqLatencies += currentLatency;
-            this.latencies.add(currentLatency);
+            this.latenciesGet.add(currentLatency);
         }
 
-        // Bulk update variables that are tracked
+        // Decrement count down latch
+        AlbumClient.totalThreadsLatch.countDown();
+
+        // If initialization phase, do not update variables
+        if (initializationPhase) {
+            return;
+        }
+
+        // Bulk update variables that are tracked during loading phase
         AlbumClient.SUCCESSFUL_REQ.addAndGet(this.successfulReq);
         AlbumClient.FAILED_REQ.addAndGet(this.failedReq);
-        AlbumClient.SUM_LATENCY_EACH_REQ.addAndGet(this.sumReqLatencies);
-        AlbumClient.latencies.addAll(this.latencies);
-        AlbumClient.totalThreadsLatch.countDown();
+        AlbumClient.latenciesPost.addAll(this.latenciesPost);
+        AlbumClient.latenciesGet.addAll(this.latenciesGet);
     }
 
     /**
