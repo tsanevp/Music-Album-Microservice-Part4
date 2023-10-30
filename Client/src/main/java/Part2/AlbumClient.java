@@ -22,8 +22,7 @@ public class AlbumClient {
 
     public static void main(String[] args) throws InterruptedException {
         long start, end;
-//        String currentPhase = "Loading Java Server Phase - App Load Balancer - 2 Servlets, 1 DB";
-        String currentPhase = "Loading Java Server Phase - 1 Servlet, 1 DB";
+        String currentPhase = "Loading Java Server Phase - App Load Balancer - 2 Servlets, 1 DB";
 
         // Define starting constants
         int threadGroupSize = Integer.parseInt(args[0]);
