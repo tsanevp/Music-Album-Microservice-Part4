@@ -1,6 +1,6 @@
 # DefaultApi
 
-All URIs are relative to *https://virtserver.swaggerhub.com/IGORTON/AlbumStore/1.0.0*
+All URIs are relative to *https://virtserver.swaggerhub.com/IGORTON/AlbumStore/1.1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
