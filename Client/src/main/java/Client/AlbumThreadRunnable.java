@@ -1,24 +1,26 @@
 package Client;
 
+import io.swagger.client.ApiClient;
 import io.swagger.client.ApiException;
 import io.swagger.client.ApiResponse;
 import io.swagger.client.api.DefaultApi;
-import io.swagger.client.model.AlbumInfo;
+import io.swagger.client.api.LikeApi;
 import io.swagger.client.model.AlbumsProfile;
 import io.swagger.client.model.ImageMetaData;
 
 import java.io.File;
+import java.io.InvalidObjectException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class AlbumThreadRunnable implements Runnable {
     private final int numReqs;
     private final DefaultApi albumsApi;
+    private final LikeApi likeApi;
     private final boolean initializationPhase;
     private int successfulReq;
     private int failedReq;
     private final List<Long> latenciesPost;
-    private final List<Long> latenciesGet;
     private int counter;
 
 
@@ -30,71 +32,72 @@ public class AlbumThreadRunnable implements Runnable {
      */
     public AlbumThreadRunnable(int numReqs, String serverUrl, boolean initializationPhase) {
         this.numReqs = numReqs;
-        this.albumsApi = new DefaultApi();
-        this.albumsApi.getApiClient().setBasePath(serverUrl);
+
+        ApiClient apiClient = new ApiClient();
+        apiClient.setBasePath(serverUrl);
+        this.albumsApi = new DefaultApi(apiClient);
+        this.likeApi = new LikeApi(apiClient);
+
         this.initializationPhase = initializationPhase;
         this.successfulReq = 0;
         this.failedReq = 0;
         this.latenciesPost = new ArrayList<>();
-        this.latenciesGet = new ArrayList<>();
         this.counter = 1999;
     }
 
     @Override
     public void run() {
         long start, end, currentLatency;
-        ApiResponse<?> responseCode;
+        ApiResponse<?> response;
+        String [] requestParameters = new String[]{};
+        String uuid = null;
 
         // Perform 1000 POST & GET requests
         for (int k = 0; k < this.numReqs; k++) {
+//          // For loop to send 4 POST requests (1 album POST, 3 review POSTs - 2 likes, 1 dislike)
+            for (int i = 0; i < 4; i++) {
+                // Switch statement to define request parameters for POST request
+                requestParameters = switch (i) {
+                    case 1, 2 -> new String[]{"like", uuid};
+                    case 3 -> new String[]{"dislike", uuid};
+                    default -> requestParameters;
+                };
 
-            // Make POST request
-            start = System.currentTimeMillis();
-            responseCode = makeApiRequest("POST", null);
-            end = System.currentTimeMillis();
-            currentLatency = end - start;
+                start = System.currentTimeMillis();
+                response = makeApiRequest(requestParameters);
+                end = System.currentTimeMillis();
+                currentLatency = end - start;
+                this.latenciesPost.add(currentLatency);
 
-            this.latenciesPost.add(currentLatency);
-
-            // Make GET request
-            start = System.currentTimeMillis();
-            makeApiRequest("GET", getPostUUID(responseCode));
-            end = System.currentTimeMillis();
-            currentLatency = end - start;
-
-            this.latenciesGet.add(currentLatency);
+                if (i == 0) uuid = getPostUUID(response);
+            }
         }
 
         // Decrement count down latch
         AlbumClient.totalThreadsLatch.countDown();
 
         // If initialization phase, do not update variables
-        if (initializationPhase) {
-            return;
-        }
+        if (initializationPhase) return;
 
         // Bulk update variables that are tracked during loading phase
         AlbumClient.SUCCESSFUL_REQ.addAndGet(this.successfulReq);
         AlbumClient.FAILED_REQ.addAndGet(this.failedReq);
         AlbumClient.latenciesPost.addAll(this.latenciesPost);
-        AlbumClient.latenciesGet.addAll(this.latenciesGet);
     }
 
     /**
      * Method that makes a request to the given Api instance. If the request fails, will re-try up to MAX_ATTEMPT times.
      *
-     * @param requestMethod - The type of request to make (POST vs. GET).
      * @return - The response code of the request.
      */
-    private ApiResponse<?> makeApiRequest(String requestMethod, String requestParameters) {
+    private ApiResponse<?> makeApiRequest(String[] requestParameters) {
         ApiResponse<?> response = null;
         int attempts = 0;
-        boolean isGetReq = requestMethod.equals("GET");
 
         int maxRetries = 5;
         while (attempts < maxRetries) {
             try {
-                response = isGetReq ? getAlbum(requestParameters) : postAlbum();
+                response = requestParameters.length == 0 ? postAlbum() : sendReview(requestParameters);
                 if (response.getStatusCode() == 200) {
                     this.successfulReq += 1;
                     return response;
@@ -113,16 +116,6 @@ public class AlbumThreadRunnable implements Runnable {
     }
 
     /**
-     * Method to make a GET Album request to the given api instance.
-     *
-     * @return - The response of the api call.
-     * @throws ApiException - If fails to call the API, e.g. server error or cannot deserialize the response body.
-     */
-    private ApiResponse<AlbumInfo> getAlbum(String albumID) throws ApiException {
-        return this.albumsApi.getAlbumByKeyWithHttpInfo(albumID);
-    }
-
-    /**
      * Method to make a POST Album request to the given api instance.
      *
      * @return - The response of the api call.
@@ -132,6 +125,20 @@ public class AlbumThreadRunnable implements Runnable {
         File image = new File("src/main/java/testingImage.png");
         AlbumsProfile profile = new AlbumsProfile().artist("Monkey D. Luffy").title("One Piece").year(String.valueOf(this.counter++));
         return this.albumsApi.newAlbumWithHttpInfo(image, profile);
+    }
+
+    /**
+     * Method to make a POST Review request.
+     *
+     * @param requestParameters - The POST request parameters. The review type and uuid.
+     * @return - The response of the api call.
+     * @throws ApiException - If fails to call the API, e.g. server error or cannot deserialize the response body.
+     */
+    private ApiResponse<?> sendReview(String[] requestParameters) throws ApiException {
+        String reviewType = requestParameters[0];
+        String uuid = requestParameters[1];
+
+        return this.likeApi.reviewWithHttpInfo(reviewType, uuid);
     }
 
     /**

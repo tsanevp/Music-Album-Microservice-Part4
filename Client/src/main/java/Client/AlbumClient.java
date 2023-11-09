@@ -17,7 +17,6 @@ public class AlbumClient {
     protected static final AtomicInteger SUCCESSFUL_REQ = new AtomicInteger(0);
     protected static final AtomicInteger FAILED_REQ = new AtomicInteger(0);
     protected static List<Long> latenciesPost = Collections.synchronizedList(new ArrayList<>());
-    protected static List<Long> latenciesGet = Collections.synchronizedList(new ArrayList<>());
     protected static CountDownLatch totalThreadsLatch;
 
     public static void main(String[] args) throws InterruptedException {
@@ -108,7 +107,6 @@ public class AlbumClient {
      */
     protected static void printResults(int numThreadGroups, int threadGroupSize, int callsPerThread, String currentPhase, long start, long end) {
         LoadCalculations loadCalculationsPost = new LoadCalculations(latenciesPost);
-        LoadCalculations loadCalculationsGet = new LoadCalculations(latenciesGet);
 
         DecimalFormat decimalFormat = new DecimalFormat("#.##");
         double wallTime = (end - start) * 0.001;
@@ -125,8 +123,6 @@ public class AlbumClient {
         System.out.println("---- Calculations ----");
         System.out.println("-- POST Requests --");
         printCalculations(decimalFormat, loadCalculationsPost);
-        System.out.println("-- GET Requests --");
-        printCalculations(decimalFormat, loadCalculationsGet);
         System.out.println("-------- End of Results For " + currentPhase + " --------");
         System.out.println("-----------------------------------------------------------------------------------------");
     }
