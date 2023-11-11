@@ -1,31 +1,56 @@
-import com.zaxxer.hikari.HikariDataSource;
+import Service.RabbitMQService;
+import com.google.gson.Gson;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import org.apache.commons.pool2.impl.GenericObjectPool;
 
-import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Objects;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
+
 
 @WebServlet(name = "ReviewServlet", value = "/review/*")
 public class ReviewServlet extends HttpServlet {
-    private MySQLService mySQLService;
-    private HikariDataSource connectionPool;
-    private ReviewController reviewController;
+    private final static String EXCHANGE_NAME = "EXCHANGE_REVIEWS";
+//    private RabbitMQService rabbitMQService;
+//    private GenericObjectPool<Channel> connectionPool;
+    private ConcurrentLinkedDeque<Channel> connectionPool = new ConcurrentLinkedDeque<>();
 
-    @Override
-    public void init() {
-        this.reviewController = new ReviewController();
-        this.mySQLService = new MySQLService();
-        this.connectionPool = this.mySQLService.getConnectionPool();
+
+    public ReviewServlet() {
     }
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
+    public void init() {
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost("localhost");
+
+        try {
+            Connection connection = factory.newConnection();
+
+            for (int i = 0; i < 200; i++) {
+
+                connectionPool.add(connection.createChannel());
+            }
+
+        } catch (IOException | TimeoutException ex) {
+            throw new RuntimeException(ex);
+        }
+//        this.rabbitMQService = new RabbitMQService();
+//        this.connectionPool = this.rabbitMQService.getConnectionPool();
+
+    }
+
+        @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
         res.setContentType("application/json");
         String urlPath = req.getPathInfo();
 
@@ -48,20 +73,25 @@ public class ReviewServlet extends HttpServlet {
         String reviewType = urlParts[1];
         String albumId = urlParts[2];
 
-        // Post image info and album profile to db
-        try (Connection connection = this.connectionPool.getConnection()) {
-            int rowsAffected = Objects.equals(reviewType, "like") ? this.reviewController.addLike(connection, albumId) : this.reviewController.addDislike(connection, albumId);
+        HashMap<String, String> messageData = new HashMap<>();
+        messageData.put("albumId", albumId);
+        messageData.put("reviewType", reviewType);
+        String messageToSend = new Gson().toJson(messageData);
 
-            if (rowsAffected > 0) {
-                res.setStatus(HttpServletResponse.SC_OK);
-                res.getWriter().write("review made");
-            } else {
-                res.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                res.getWriter().write("Album not found");
+        Channel channel = null;
+        try {
+            channel = this.connectionPool.removeFirst();
+            channel.exchangeDeclare(EXCHANGE_NAME, "fanout");
+            channel.basicPublish(EXCHANGE_NAME, "", null, messageToSend.getBytes(StandardCharsets.UTF_8));
+
+            res.setStatus(HttpServletResponse.SC_CREATED);
+            res.getWriter().write("Review sent");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            if (channel != null) {
+                this.connectionPool.add(channel);
             }
-        } catch (SQLException e) {
-            res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            res.getWriter().write("There was an error with the database");
         }
     }
 
@@ -85,7 +115,7 @@ public class ReviewServlet extends HttpServlet {
     }
 
     /**
-     * Enum constants that represent different possible endpoints
+     * Enum constants that represent different review endpoints
      */
     private enum Endpoint {
         LIKE_REVIEW(Pattern.compile("like")), DISLIKE_REVIEW(Pattern.compile("dislike"));
@@ -99,6 +129,6 @@ public class ReviewServlet extends HttpServlet {
 
     @Override
     public void destroy() {
-        mySQLService.close();
+//        this.rabbitMQService.close();
     }
 }

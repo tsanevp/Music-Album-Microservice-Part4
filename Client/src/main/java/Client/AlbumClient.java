@@ -30,7 +30,7 @@ public class AlbumClient {
         String serverURL = args[3];
 
         // Thread calls and calculations
-        int callsPerThread = 1000;
+        int callsPerThread = 100;
         int maxThreads = threadGroupSize * numThreadGroups;
 
         // Executor service used for thread pooling and countdown latch to track when loading is complete
@@ -38,13 +38,17 @@ public class AlbumClient {
         totalThreadsLatch = new CountDownLatch(INITIAL_THREAD_COUNT);
 
         // Run initialization phase
-//        start = System.currentTimeMillis();
+        start = System.currentTimeMillis();
         initializationPhase(servicePool, serverURL);
-//        end = System.currentTimeMillis();
-//        printResults(1, INITIAL_THREAD_COUNT, INITIAL_CALLS_PER_THREAD, "Initialization Phase Results", INITIAL_THREAD_COUNT * INITIAL_CALLS_PER_THREAD * 2, INITIAL_THREAD_COUNT, start, end);
+        end = System.currentTimeMillis();
+        printResults(1, INITIAL_THREAD_COUNT, INITIAL_CALLS_PER_THREAD, "Initialization Phase Results", start, end);
 
-        // Redefine countdown latch for server loading phase
+        // Redefine countdown latch for server loading
+        // TODO: remove these redefinitions when actually testing
         totalThreadsLatch = new CountDownLatch(maxThreads);
+        SUCCESSFUL_REQ.set(0);
+        FAILED_REQ.set(0);
+        latenciesPost.clear();
 
         // Load Server
         start = System.currentTimeMillis();

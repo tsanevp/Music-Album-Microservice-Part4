@@ -1,3 +1,5 @@
+package Service;
+
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
@@ -38,7 +40,7 @@ public class MySQLService {
             config.setUsername(DB_USER);
             config.setPassword(DB_PASSWORD);
             config.setMinimumIdle(25);
-            config.setMaximumPoolSize(50);
+            config.setMaximumPoolSize(70);
 
             connectionPool = new HikariDataSource(config);
             System.out.println("connected to db");
@@ -53,7 +55,7 @@ public class MySQLService {
     /**
      * Closes the connection pool to the mySQL database.
      */
-    protected void close() {
+    public void close() {
         if (this.connectionPool != null) {
             this.connectionPool.close();
             System.out.println("Connection closed");

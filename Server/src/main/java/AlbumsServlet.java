@@ -1,3 +1,5 @@
+import Controller.AlbumController;
+import Service.MySQLService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.zaxxer.hikari.HikariDataSource;
@@ -34,44 +36,6 @@ public class AlbumsServlet extends HttpServlet {
         this.albumController = new AlbumController();
         this.mySQLService = new MySQLService();
         this.connectionPool = this.mySQLService.getConnectionPool();
-    }
-
-    @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
-        res.setContentType("application/json");
-        String urlPath = req.getPathInfo();
-
-        // Check we have url
-        if (urlPath == null || urlPath.isEmpty()) {
-            res.setStatus(HttpServletResponse.SC_NOT_FOUND);
-            res.getWriter().write("missing parameters");
-            return;
-        }
-
-        // Validate url path and ensure we have a valid request
-        if (!isUrlValid(urlPath)) {
-            res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            res.getWriter().write("invalid request");
-            return;
-        }
-
-        String albumId = urlPath.split("/")[1];
-
-        try (Connection connection = this.connectionPool.getConnection()) {
-            ResultSet resultSet = this.albumController.getAlbumProfile(connection, albumId);
-
-            if (resultSet.next()) {
-                res.setStatus(HttpServletResponse.SC_OK);
-                res.getWriter().write(resultSet.getString("AlbumProfile"));
-            } else {
-                // Album id does not exist in DB
-                res.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                res.getWriter().write("Key not found");
-            }
-        } catch (SQLException e) {
-            res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            res.getWriter().write("There was an error with the database");
-        }
     }
 
     @Override
@@ -224,19 +188,3 @@ public class AlbumsServlet extends HttpServlet {
         mySQLService.close();
     }
 }
-
-//    <?xml version="1.0" encoding="UTF-8"?>
-//<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
-//        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-//        xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
-//        version="4.0">
-//<servlet>
-//<servlet-name>AlbumsServlet</servlet-name>
-//<servlet-class>AlbumsServlet</servlet-class>
-//</servlet>
-//
-//<servlet-mapping>
-//<servlet-name>AlbumsServlet</servlet-name>
-//<url-pattern>/albums/*</url-pattern>
-//    </servlet-mapping>
-//</web-app>

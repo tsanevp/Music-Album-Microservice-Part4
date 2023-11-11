@@ -1,10 +1,12 @@
+package Controller;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class ReviewController {
 
-    ReviewController() {
+    public ReviewController() {
     }
 
     /**
@@ -15,7 +17,7 @@ public class ReviewController {
      * @return - The row count of the update. If the value is greater than 0, the update was successful.
      * @throws SQLException - Occurs if a database access error occurs.
      */
-    int addLike(Connection connection, String uuid) throws SQLException {
+    public int addLike(Connection connection, String uuid) throws SQLException {
         String updateQuery = "UPDATE albumRequests SET numberOfLikes = numberOfLikes + 1 WHERE AlbumID = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(updateQuery);
 
@@ -34,7 +36,7 @@ public class ReviewController {
      * @return - The row count of the update. If the value is greater than 0, the update was successful.
      * @throws SQLException - Occurs if a database access error occurs.
      */
-    int addDislike(Connection connection, String uuid) throws SQLException {
+    public int addDislike(Connection connection, String uuid) throws SQLException {
         String updateQuery = "UPDATE albumRequests SET numberOfDislikes = numberOfDislikes + 1 WHERE AlbumID = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(updateQuery);
 

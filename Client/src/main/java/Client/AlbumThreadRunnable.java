@@ -9,9 +9,9 @@ import io.swagger.client.model.AlbumsProfile;
 import io.swagger.client.model.ImageMetaData;
 
 import java.io.File;
-import java.io.InvalidObjectException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class AlbumThreadRunnable implements Runnable {
     private final int numReqs;
@@ -49,8 +49,9 @@ public class AlbumThreadRunnable implements Runnable {
     public void run() {
         long start, end, currentLatency;
         ApiResponse<?> response;
-        String [] requestParameters = new String[]{};
         String uuid = null;
+        String[] requestParameters;
+
 
         // Perform 1000 POST & GET requests
         for (int k = 0; k < this.numReqs; k++) {
@@ -58,9 +59,10 @@ public class AlbumThreadRunnable implements Runnable {
             for (int i = 0; i < 4; i++) {
                 // Switch statement to define request parameters for POST request
                 requestParameters = switch (i) {
+                    case 0 -> new String[]{"albumPost", null};
                     case 1, 2 -> new String[]{"like", uuid};
                     case 3 -> new String[]{"dislike", uuid};
-                    default -> requestParameters;
+                    default -> new String[]{};
                 };
 
                 start = System.currentTimeMillis();
@@ -76,8 +78,9 @@ public class AlbumThreadRunnable implements Runnable {
         // Decrement count down latch
         AlbumClient.totalThreadsLatch.countDown();
 
+        // TODO: uncomment this out when actually testing
         // If initialization phase, do not update variables
-        if (initializationPhase) return;
+//        if (initializationPhase) return;
 
         // Bulk update variables that are tracked during loading phase
         AlbumClient.SUCCESSFUL_REQ.addAndGet(this.successfulReq);
@@ -97,8 +100,9 @@ public class AlbumThreadRunnable implements Runnable {
         int maxRetries = 5;
         while (attempts < maxRetries) {
             try {
-                response = requestParameters.length == 0 ? postAlbum() : sendReview(requestParameters);
-                if (response.getStatusCode() == 200) {
+                response = Objects.equals(requestParameters[0], "albumPost") ? postAlbum() : sendReview(requestParameters);
+                int statusCode = response.getStatusCode();
+                if (statusCode == 200 || statusCode == 201) {
                     this.successfulReq += 1;
                     return response;
                 }
