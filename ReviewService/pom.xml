@@ -16,7 +16,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>src.main.java.ReviewConsumer</mainClass>
+                            <mainClass>ReviewConsumer</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
