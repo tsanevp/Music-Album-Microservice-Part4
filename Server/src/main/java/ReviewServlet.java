@@ -31,12 +31,12 @@ public class ReviewServlet extends HttpServlet {
     @Override
     public void init() {
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
+        factory.setHost("ec2-54-212-246-9.us-west-2.compute.amazonaws.com");
 
         try {
             Connection connection = factory.newConnection();
 
-            for (int i = 0; i < 200; i++) {
+            for (int i = 0; i < 10; i++) {
 
                 connectionPool.add(connection.createChannel());
             }

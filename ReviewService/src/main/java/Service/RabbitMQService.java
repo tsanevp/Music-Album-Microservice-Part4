@@ -36,7 +36,7 @@ public class RabbitMQService {
      */
     private GenericObjectPool<Channel> connect() {
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
+        factory.setHost("ec2-54-212-246-9.us-west-2.compute.amazonaws.com");
 
         try {
             this.connection = factory.newConnection();

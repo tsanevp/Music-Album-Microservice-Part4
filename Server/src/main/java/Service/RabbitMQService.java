@@ -36,14 +36,14 @@ public class RabbitMQService {
      */
     private GenericObjectPool<Channel> connect() {
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
+        factory.setHost("ec2-54-212-246-9.us-west-2.compute.amazonaws.com");
 
         try {
             this.connection = factory.newConnection();
             GenericObjectPoolConfig<Channel> config = new GenericObjectPoolConfig<>();
             config.setMinIdle(1);
             config.setMaxIdle(3);
-            config.setMaxTotal(200);
+            config.setMaxTotal(10);
 
             RabbitMQChannelFactory rabbitMQChannelFactory = new RabbitMQChannelFactory(this.connection);
             return new GenericObjectPool<>(rabbitMQChannelFactory, config);
