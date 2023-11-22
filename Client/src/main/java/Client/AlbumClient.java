@@ -16,7 +16,9 @@ public class AlbumClient {
     private static final int INITIAL_CALLS_PER_THREAD = 100;
     protected static final AtomicInteger SUCCESSFUL_REQ = new AtomicInteger(0);
     protected static final AtomicInteger FAILED_REQ = new AtomicInteger(0);
-    protected static List<Long> latenciesPost = Collections.synchronizedList(new ArrayList<>());
+    protected static List<Long> albumPost = Collections.synchronizedList(new ArrayList<>());
+    protected static List<Long> likesPost = Collections.synchronizedList(new ArrayList<>());
+    protected static List<Long> dislikesPost = Collections.synchronizedList(new ArrayList<>());
     protected static CountDownLatch totalThreadsLatch;
 
     public static void main(String[] args) throws InterruptedException {
@@ -48,7 +50,9 @@ public class AlbumClient {
         totalThreadsLatch = new CountDownLatch(maxThreads);
         SUCCESSFUL_REQ.set(0);
         FAILED_REQ.set(0);
-        latenciesPost.clear();
+        albumPost.clear();
+        likesPost.clear();
+        dislikesPost.clear();
 
         // Load Server
         start = System.currentTimeMillis();
@@ -110,7 +114,9 @@ public class AlbumClient {
      * @param start           - The start time of the current phase.
      */
     protected static void printResults(int numThreadGroups, int threadGroupSize, int callsPerThread, String currentPhase, long start, long end) {
-        LoadCalculations loadCalculationsPost = new LoadCalculations(latenciesPost);
+        LoadCalculations loadCalculationsAlbumsPost = new LoadCalculations(albumPost);
+        LoadCalculations loadCalculationsLikesPost = new LoadCalculations(likesPost);
+        LoadCalculations loadCalculationsDislikesPost = new LoadCalculations(dislikesPost);
 
         DecimalFormat decimalFormat = new DecimalFormat("#.##");
         double wallTime = (end - start) * 0.001;
@@ -125,8 +131,12 @@ public class AlbumClient {
         System.out.println("Throughput: " + decimalFormat.format(SUCCESSFUL_REQ.get() / wallTime) + " (req/sec) ---> total successful requests / wall time");
         System.out.println("Wall Time: " + decimalFormat.format(wallTime) + " (sec)\n");
         System.out.println("---- Calculations ----");
-        System.out.println("-- POST Requests --");
-        printCalculations(decimalFormat, loadCalculationsPost);
+        System.out.println("-- Album POST Requests --");
+        printCalculations(decimalFormat, loadCalculationsAlbumsPost);
+        System.out.println("-- Like POST Requests --");
+        printCalculations(decimalFormat, loadCalculationsLikesPost);
+        System.out.println("-- Dislike POST Requests --");
+        printCalculations(decimalFormat, loadCalculationsDislikesPost);
         System.out.println("-------- End of Results For " + currentPhase + " --------");
         System.out.println("-----------------------------------------------------------------------------------------");
     }

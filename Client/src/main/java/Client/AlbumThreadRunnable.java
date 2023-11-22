@@ -20,13 +20,15 @@ public class AlbumThreadRunnable implements Runnable {
     private final boolean initializationPhase;
     private int successfulReq;
     private int failedReq;
-    private final List<Long> latenciesPost;
+    private final List<Long> albumPost;
+    private final List<Long> likePost;
+    private final List<Long> dislikePost;
     private int counter;
 
 
     /**
      * Class constructor used to create a thread runnable.
-     *
+     * http://ec2-34-219-17-241.us-west-2.compute.amazonaws.com:8080/Server_Web
      * @param numReqs   - The number of each request type the thread should send (GET vs. POST).
      * @param serverUrl - The server url each request should target.
      */
@@ -41,7 +43,10 @@ public class AlbumThreadRunnable implements Runnable {
         this.initializationPhase = initializationPhase;
         this.successfulReq = 0;
         this.failedReq = 0;
-        this.latenciesPost = new ArrayList<>();
+        this.albumPost = new ArrayList<>();
+        this.likePost = new ArrayList<>();
+        this.dislikePost = new ArrayList<>();
+
         this.counter = 1999;
     }
 
@@ -57,7 +62,6 @@ public class AlbumThreadRunnable implements Runnable {
         for (int k = 0; k < this.numReqs; k++) {
 //          // For loop to send 4 POST requests (1 album POST, 3 review POSTs - 2 likes, 1 dislike)
             for (int i = 0; i < 4; i++) {
-                // Switch statement to define request parameters for POST request
                 requestParameters = switch (i) {
                     case 0 -> new String[]{"albumPost", null};
                     case 1, 2 -> new String[]{"like", uuid};
@@ -69,9 +73,15 @@ public class AlbumThreadRunnable implements Runnable {
                 response = makeApiRequest(requestParameters);
                 end = System.currentTimeMillis();
                 currentLatency = end - start;
-                this.latenciesPost.add(currentLatency);
 
-                if (i == 0) uuid = getPostUUID(response);
+                switch (i) {
+                    case 0 -> {
+                        uuid = getPostUUID(response);
+                        this.albumPost.add(currentLatency);
+                    }
+                    case 3 -> this.dislikePost.add(currentLatency);
+                    default -> this.likePost.add(currentLatency);
+                }
             }
         }
 
@@ -85,7 +95,9 @@ public class AlbumThreadRunnable implements Runnable {
         // Bulk update variables that are tracked during loading phase
         AlbumClient.SUCCESSFUL_REQ.addAndGet(this.successfulReq);
         AlbumClient.FAILED_REQ.addAndGet(this.failedReq);
-        AlbumClient.latenciesPost.addAll(this.latenciesPost);
+        AlbumClient.albumPost.addAll(this.albumPost);
+        AlbumClient.likesPost.addAll(this.likePost);
+        AlbumClient.dislikesPost.addAll(this.dislikePost);
     }
 
     /**
@@ -108,7 +120,7 @@ public class AlbumThreadRunnable implements Runnable {
                 }
                 attempts++;
             } catch (ApiException e) {
-                attempts++;
+                sleepThread(attempts++);
             }
         }
 
@@ -154,5 +166,13 @@ public class AlbumThreadRunnable implements Runnable {
     private String getPostUUID(ApiResponse<?> response) {
         ImageMetaData imageMetaData = (ImageMetaData) response.getData();
         return imageMetaData.getAlbumID();
+    }
+
+    private void sleepThread(int numTries) {
+        try {
+            Thread.sleep(2 ^ numTries);
+        } catch (InterruptedException e){
+            e.printStackTrace();
+        }
     }
 }
