@@ -16,11 +16,13 @@ import java.util.logging.Logger;
 public class ReviewRunnable implements Runnable {
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final static String QUEUE_NAME = "QUEUE_REVIEWS";
-    private final static String EXCHANGE_NAME = "EXCHANGE_REVIEWS";
+    private final static String EXCHANGE_NAME = "EXCHANGE_TEST";
     private final Connection connection;
+    private final String queueName;
 
-    public ReviewRunnable(Connection connection) {
+    public ReviewRunnable(Connection connection, String queueName) {
         this.connection = connection;
+        this.queueName = queueName;
     }
 
     @Override
@@ -28,19 +30,18 @@ public class ReviewRunnable implements Runnable {
         try {
             Channel channel = connection.createChannel();
 
-            channel.exchangeDeclare(EXCHANGE_NAME, "fanout");
-            channel.queueDeclare(QUEUE_NAME, false, false, false, null);
-            channel.queueBind(QUEUE_NAME, EXCHANGE_NAME, "");
+            channel.exchangeDeclare(EXCHANGE_NAME, "direct");
+            channel.queueDeclare(queueName, false, false, false, null);
+            channel.queueBind(queueName, EXCHANGE_NAME, queueName);
 
-            // max one message per receiver
-            channel.basicQos(1);
             System.out.println(" [*] Thread waiting for messages. To exit press CTRL+C");
 
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                 handleMessage(delivery, channel);
             };
+
             // process messages
-            channel.basicConsume(QUEUE_NAME, false, deliverCallback, consumerTag -> {
+            channel.basicConsume(queueName, false, deliverCallback, consumerTag -> {
             });
         } catch (Exception ex) {
             Logger.getLogger(ReviewConsumer.class.getName()).log(Level.SEVERE, null, ex);
@@ -48,30 +49,27 @@ public class ReviewRunnable implements Runnable {
     }
 
     private void handleMessage(Delivery delivery, Channel channel) throws IOException {
-        String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
-//        System.out.println("Callback thread ID = " + Thread.currentThread().getId() + " Received '" + message + "'");
+        try {
+            String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
 
-        // Use Gson to deserialize the JSON string to a Java object
-        JsonObject reviewJsonBody = gson.fromJson(message, JsonObject.class);
+            // Use Gson to deserialize the JSON string to a Java object
+            JsonObject reviewJsonBody = gson.fromJson(message, JsonObject.class);
 
-        // Get the albumId and review type
-        String albumId = reviewJsonBody.get("albumId").getAsString();
-        String reviewType = reviewJsonBody.get("reviewType").getAsString();
+            // Get the albumId and review type
+            String albumId = reviewJsonBody.get("albumId").getAsString();
+            String reviewType = reviewJsonBody.get("reviewType").getAsString();
 
-        // Increment review type value in DB
-        try (java.sql.Connection connection = ReviewConsumer.connectionPool.getConnection()) {
-            int rowsAffected = Objects.equals(reviewType, "like") ? ReviewConsumer.reviewController.addLike(connection, albumId) : ReviewConsumer.reviewController.addDislike(connection, albumId);
+            // Increment review type value in DB
+            try (java.sql.Connection connection = ReviewConsumer.connectionPool.getConnection()) {
+                int rowsAffected = Objects.equals(reviewType, "like") ? ReviewConsumer.reviewController.addLike(connection, albumId) : ReviewConsumer.reviewController.addDislike(connection, albumId);
 
-//            if (rowsAffected > 0) {
-//                System.out.println("DB updated");
-//            } else {
-//                System.out.println("Album not found");
-//            }
+            } catch (SQLException e) {
+                channel.basicReject(delivery.getEnvelope().getDeliveryTag(), true);
+            }
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } finally {
             channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+        } catch (Exception e) {
+            channel.basicReject(delivery.getEnvelope().getDeliveryTag(), true);
         }
     }
 }

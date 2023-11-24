@@ -118,7 +118,7 @@ public class AlbumThreadRunnable implements Runnable {
                     this.successfulReq += 1;
                     return response;
                 }
-                attempts++;
+                sleepThread(attempts++);
             } catch (ApiException e) {
                 sleepThread(attempts++);
             }
