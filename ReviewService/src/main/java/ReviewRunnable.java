@@ -1,3 +1,4 @@
+import Controller.ReviewController;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -15,24 +16,26 @@ import java.util.logging.Logger;
 
 public class ReviewRunnable implements Runnable {
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-    private final static String QUEUE_NAME = "QUEUE_REVIEWS";
-    private final static String EXCHANGE_NAME = "EXCHANGE_TEST";
     private final Connection connection;
+    private final String exchangeName;
+    private final String exchangeType;
     private final String queueName;
 
-    public ReviewRunnable(Connection connection, String queueName) {
+    public ReviewRunnable(Connection connection, String exchangeName, String exchangeType, String queueName) {
         this.connection = connection;
+        this.exchangeName = exchangeName;
+        this.exchangeType = exchangeType;
         this.queueName = queueName;
     }
 
     @Override
     public void run() {
         try {
-            Channel channel = connection.createChannel();
+            Channel channel = this.connection.createChannel();
 
-            channel.exchangeDeclare(EXCHANGE_NAME, "direct");
-            channel.queueDeclare(queueName, false, false, false, null);
-            channel.queueBind(queueName, EXCHANGE_NAME, queueName);
+            channel.exchangeDeclare(this.exchangeName, this.exchangeType);
+            channel.queueDeclare(this.queueName, false, false, false, null);
+            channel.queueBind(this.queueName, this.exchangeName, this.queueName);
 
             System.out.println(" [*] Thread waiting for messages. To exit press CTRL+C");
 
@@ -40,8 +43,9 @@ public class ReviewRunnable implements Runnable {
                 handleMessage(delivery, channel);
             };
 
-            // process messages
-            channel.basicConsume(queueName, false, deliverCallback, consumerTag -> {
+            // Process messages
+            boolean autoAck = true;
+            channel.basicConsume(this.queueName, autoAck, deliverCallback, consumerTag -> {
             });
         } catch (Exception ex) {
             Logger.getLogger(ReviewConsumer.class.getName()).log(Level.SEVERE, null, ex);
@@ -50,9 +54,8 @@ public class ReviewRunnable implements Runnable {
 
     private void handleMessage(Delivery delivery, Channel channel) throws IOException {
         try {
-            String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
-
             // Use Gson to deserialize the JSON string to a Java object
+            String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
             JsonObject reviewJsonBody = gson.fromJson(message, JsonObject.class);
 
             // Get the albumId and review type
@@ -64,12 +67,14 @@ public class ReviewRunnable implements Runnable {
                 int rowsAffected = Objects.equals(reviewType, "like") ? ReviewConsumer.reviewController.addLike(connection, albumId) : ReviewConsumer.reviewController.addDislike(connection, albumId);
 
             } catch (SQLException e) {
-                channel.basicReject(delivery.getEnvelope().getDeliveryTag(), true);
+                e.printStackTrace();
+//                channel.basicReject(delivery.getEnvelope().getDeliveryTag(), true);
             }
 
-            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+//            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
         } catch (Exception e) {
-            channel.basicReject(delivery.getEnvelope().getDeliveryTag(), true);
+            e.printStackTrace();
+//            channel.basicReject(delivery.getEnvelope().getDeliveryTag(), true);
         }
     }
 }

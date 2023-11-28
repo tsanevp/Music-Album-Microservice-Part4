@@ -1,7 +1,6 @@
+import Service.RabbitMQService;
 import com.google.gson.Gson;
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -11,41 +10,20 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 
 
 @WebServlet(name = "ReviewServlet", value = "/review/*")
 public class ReviewServlet extends HttpServlet {
-    private final static String EXCHANGE_NAME = "EXCHANGE_TEST";
-    private final ConcurrentLinkedDeque<Channel> connectionPoolLikes = new ConcurrentLinkedDeque<>();
-    private final ConcurrentLinkedDeque<Channel> connectionPoolDislikes = new ConcurrentLinkedDeque<>();
-
-    public ReviewServlet() {
-    }
+    private final String EXCHANGE_NAME = "EXCHANGE_TEST";
+    private final RabbitMQService rabbitMQService = new RabbitMQService();
+    private ConcurrentLinkedDeque<Channel> channelPool;
 
     @Override
     public void init() {
-        ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost("localhost");
-
-        try {
-            Connection connectionLikes = factory.newConnection();
-            Connection connectionDislikes = factory.newConnection();
-
-            for (int i = 0; i < 120; i++) {
-                Channel channel = connectionLikes.createChannel();
-                channel.exchangeDeclare(EXCHANGE_NAME, "direct");
-                connectionPoolLikes.add(channel);
-
-                Channel channel2 = connectionDislikes.createChannel();
-                channel2.exchangeDeclare(EXCHANGE_NAME, "direct");
-                connectionPoolDislikes.add(channel2);
-            }
-
-        } catch (IOException | TimeoutException ex) {
-            throw new RuntimeException(ex);
-        }
+        String HOST = "localhost";
+        String EXCHANGE_TYPE = "direct";
+        this.channelPool = this.rabbitMQService.createChannelPool(HOST, EXCHANGE_NAME, EXCHANGE_TYPE);
     }
 
     @Override
@@ -69,23 +47,21 @@ public class ReviewServlet extends HttpServlet {
             return;
         }
 
+        // Get message parameters
         String reviewType = urlParts[1];
         String albumId = urlParts[2];
 
+        // Convert message to JSON format
         HashMap<String, String> messageData = new HashMap<>();
         messageData.put("albumId", albumId);
         messageData.put("reviewType", reviewType);
         String messageToSend = new Gson().toJson(messageData);
 
+        // Publish message to RabbitMQ Exchange
         Channel channel = null;
         try {
-            if (reviewType.equals("like")) {
-                channel = this.connectionPoolLikes.removeFirst();
-                channel.basicPublish(EXCHANGE_NAME, "like", null, messageToSend.getBytes(StandardCharsets.UTF_8));
-            } else {
-                channel = this.connectionPoolDislikes.removeFirst();
-                channel.basicPublish(EXCHANGE_NAME, "dislike", null, messageToSend.getBytes(StandardCharsets.UTF_8));
-            }
+            channel = this.channelPool.removeFirst();
+            channel.basicPublish(EXCHANGE_NAME, reviewType, null, messageToSend.getBytes(StandardCharsets.UTF_8));
 
             res.setStatus(HttpServletResponse.SC_CREATED);
             res.getWriter().write("Review sent");
@@ -93,11 +69,7 @@ public class ReviewServlet extends HttpServlet {
             throw new RuntimeException(e);
         } finally {
             if (channel != null) {
-                if (reviewType.equals("like")) {
-                    this.connectionPoolLikes.add(channel);
-                } else {
-                    this.connectionPoolDislikes.add(channel);
-                }
+                this.channelPool.add(channel);
             }
         }
     }
@@ -134,19 +106,8 @@ public class ReviewServlet extends HttpServlet {
         }
     }
 
-    private void closeChannels(ConcurrentLinkedDeque<Channel> connectionPool) {
-        for (Channel channel : connectionPool) {
-            try {
-                channel.close();
-            } catch (IOException | TimeoutException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
     @Override
     public void destroy() {
-        closeChannels(this.connectionPoolLikes);
-        closeChannels(this.connectionPoolDislikes);
+        this.rabbitMQService.closeChannelPool(this.channelPool);
     }
 }

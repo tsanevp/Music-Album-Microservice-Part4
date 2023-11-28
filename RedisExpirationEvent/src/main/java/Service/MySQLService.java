@@ -40,7 +40,7 @@ public class MySQLService {
             config.setUsername(DB_USER);
             config.setPassword(DB_PASSWORD);
             config.setMinimumIdle(25);
-            config.setMaximumPoolSize(50);
+            config.setMaximumPoolSize(100);
 
             connectionPool = new HikariDataSource(config);
             System.out.println("connected to db");

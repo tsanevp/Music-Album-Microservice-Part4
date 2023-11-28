@@ -28,7 +28,7 @@ public class AlbumThreadRunnable implements Runnable {
 
     /**
      * Class constructor used to create a thread runnable.
-     * http://ec2-34-219-17-241.us-west-2.compute.amazonaws.com:8080/Server_Web
+     *
      * @param numReqs   - The number of each request type the thread should send (GET vs. POST).
      * @param serverUrl - The server url each request should target.
      */
@@ -88,9 +88,8 @@ public class AlbumThreadRunnable implements Runnable {
         // Decrement count down latch
         AlbumClient.totalThreadsLatch.countDown();
 
-        // TODO: uncomment this out when actually testing
         // If initialization phase, do not update variables
-//        if (initializationPhase) return;
+        if (initializationPhase) return;
 
         // Bulk update variables that are tracked during loading phase
         AlbumClient.SUCCESSFUL_REQ.addAndGet(this.successfulReq);
@@ -168,6 +167,11 @@ public class AlbumThreadRunnable implements Runnable {
         return imageMetaData.getAlbumID();
     }
 
+    /**
+     * Method to prevent cascading failures. Introduced exponential backoff.
+     *
+     * @param numTries - The current attempt used to defined how long the thread should sleep.
+     */
     private void sleepThread(int numTries) {
         try {
             Thread.sleep(2 ^ numTries);
