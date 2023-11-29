@@ -15,13 +15,13 @@ import java.util.regex.Pattern;
 
 @WebServlet(name = "ReviewServlet", value = "/review/*")
 public class ReviewServlet extends HttpServlet {
-    private final String EXCHANGE_NAME = "EXCHANGE_TEST";
+    private final String EXCHANGE_NAME = "REVIEW_EXCHANGE";
     private final RabbitMQService rabbitMQService = new RabbitMQService();
     private ConcurrentLinkedDeque<Channel> channelPool;
 
     @Override
     public void init() {
-        String HOST = "localhost";
+        String HOST = "";
         String EXCHANGE_TYPE = "direct";
         this.channelPool = this.rabbitMQService.createChannelPool(HOST, EXCHANGE_NAME, EXCHANGE_TYPE);
     }
