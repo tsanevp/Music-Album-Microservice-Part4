@@ -1,8 +1,8 @@
 # swagger-java-client
 
 Album Store API
-- API version: 1.1
-  - Build date: 2023-11-07T22:02:13.057459223Z[GMT]
+- API version: 1.2
+  - Build date: 2023-12-01T00:21:59.295362426Z[GMT]
 
 CS6650 Fall 2023
 
@@ -122,12 +122,13 @@ public class DefaultApiExample {
 
 ## Documentation for API Endpoints
 
-All URIs are relative to *https://virtserver.swaggerhub.com/IGORTON/AlbumStore/1.1*
+All URIs are relative to *https://virtserver.swaggerhub.com/IGORTON/AlbumStore/1.2*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
 *DefaultApi* | [**getAlbumByKey**](docs/DefaultApi.md#getAlbumByKey) | **GET** /albums/{albumID} | get album by key
 *DefaultApi* | [**newAlbum**](docs/DefaultApi.md#newAlbum) | **POST** /albums | Returns the new key and size of an image in bytes.
+*LikeApi* | [**getLikes**](docs/LikeApi.md#getLikes) | **GET** /review/{albumID} | 
 *LikeApi* | [**review**](docs/LikeApi.md#review) | **POST** /review/{likeornot}/{albumID} | 
 
 ## Documentation for Models
@@ -137,6 +138,7 @@ Class | Method | HTTP request | Description
  - [AlbumsProfile](docs/AlbumsProfile.md)
  - [ErrorMsg](docs/ErrorMsg.md)
  - [ImageMetaData](docs/ImageMetaData.md)
+ - [Likes](docs/Likes.md)
 
 ## Documentation for Authorization
 
