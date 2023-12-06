@@ -1,10 +1,13 @@
 import Controller.AlbumController;
 import Service.MySQLService;
+import Service.RedisService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.zaxxer.hikari.HikariDataSource;
 import io.swagger.client.model.AlbumsProfile;
 import io.swagger.client.model.ImageMetaData;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
@@ -30,11 +33,17 @@ public class AlbumsServlet extends HttpServlet {
     private HikariDataSource connectionPool;
     private AlbumController albumController;
 
+    private RedisService redisService;
+    private JedisPool redisConnectionPool;
+
     @Override
     public void init() {
         this.albumController = new AlbumController();
-        this.mySQLService = new MySQLService();
+        this.mySQLService = new MySQLService(100, 200);
         this.connectionPool = this.mySQLService.getConnectionPool();
+
+        this.redisService = new RedisService();
+        this.redisConnectionPool = this.redisService.getConnectionPool();
     }
 
     @Override
@@ -85,6 +94,12 @@ public class AlbumsServlet extends HttpServlet {
         // Post image info and album profile to db
         try (Connection connection = this.connectionPool.getConnection()) {
             int rowsAffected = this.albumController.postToDatabase(connection, uuid, imageData, albumProfile);
+
+            try (Jedis jedisConnection = this.redisConnectionPool.getResource()) {
+                jedisConnection.hset(uuid, "NumberOfLikes", "0");
+                jedisConnection.hset(uuid, "NumberOfDislikes", "0");
+                jedisConnection.expire(uuid, 600);
+            } catch (Exception ignored){}
 
             if (rowsAffected > 0) {
                 res.setStatus(HttpServletResponse.SC_OK);
@@ -184,6 +199,8 @@ public class AlbumsServlet extends HttpServlet {
 
     @Override
     public void destroy() {
-        mySQLService.close();
+
+        this.mySQLService.close();
+        this.redisService.close();
     }
 }

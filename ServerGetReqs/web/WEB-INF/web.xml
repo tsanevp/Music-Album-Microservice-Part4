@@ -5,12 +5,12 @@
          version="4.0">
 
     <servlet>
-        <servlet-name>GetReviewsServer</servlet-name>
-        <servlet-class>GetReviewsServer</servlet-class>
+        <servlet-name>ReviewServlet</servlet-name>
+        <servlet-class>ReviewServlet</servlet-class>
     </servlet>
 
     <servlet-mapping>
-        <servlet-name>GetReviewsServer</servlet-name>
+        <servlet-name>ReviewServlet</servlet-name>
         <url-pattern>/review/*</url-pattern>
     </servlet-mapping>
 </web-app>

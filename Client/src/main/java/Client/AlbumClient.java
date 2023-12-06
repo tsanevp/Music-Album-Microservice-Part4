@@ -4,6 +4,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -14,12 +15,22 @@ import static java.lang.Thread.sleep;
 public class AlbumClient {
     private static final int INITIAL_THREAD_COUNT = 10;
     private static final int INITIAL_CALLS_PER_THREAD = 100;
+    private static final int NUM_THREADS_FOR_GET_REQS = 3;
+    protected static boolean MAKE_GET_REQS = true;
     protected static final AtomicInteger SUCCESSFUL_REQ = new AtomicInteger(0);
     protected static final AtomicInteger FAILED_REQ = new AtomicInteger(0);
+
+    protected static final AtomicInteger SUCCESSFUL_GET_REQ = new AtomicInteger(0);
+    protected static final AtomicInteger FAILED_GET_REQ = new AtomicInteger(0);
     protected static List<Long> albumPost = Collections.synchronizedList(new ArrayList<>());
     protected static List<Long> likesPost = Collections.synchronizedList(new ArrayList<>());
     protected static List<Long> dislikesPost = Collections.synchronizedList(new ArrayList<>());
+    protected static List<Long> reviewGet = Collections.synchronizedList(new ArrayList<>());
+    protected static ConcurrentLinkedDeque<String> albumIdsToCall = new ConcurrentLinkedDeque<>();
     protected static CountDownLatch totalThreadsLatch;
+    protected static CountDownLatch getReqThreadsLatch;
+    private static long startGETReqs;
+
 
     public static void main(String[] args) throws InterruptedException {
         long start, end;
@@ -30,6 +41,7 @@ public class AlbumClient {
         int numThreadGroups = Integer.parseInt(args[1]);
         long delay = Long.parseLong(args[2]);
         String serverURL = args[3];
+        String getServerURL = args[4];
 
         // Thread calls and calculations
         int callsPerThread = 100;
@@ -38,6 +50,10 @@ public class AlbumClient {
         // Executor service used for thread pooling and countdown latch to track when loading is complete
         ExecutorService servicePool = Executors.newFixedThreadPool(maxThreads);
         totalThreadsLatch = new CountDownLatch(INITIAL_THREAD_COUNT);
+
+        // Executor service used to make continuous GET requests
+        ExecutorService getReqServicePool = Executors.newFixedThreadPool(NUM_THREADS_FOR_GET_REQS);
+        getReqThreadsLatch = new CountDownLatch(NUM_THREADS_FOR_GET_REQS);
 
         // Run initialization phase
         start = System.currentTimeMillis();
@@ -50,7 +66,7 @@ public class AlbumClient {
 
         // Load Server
         start = System.currentTimeMillis();
-        loadServerPhase(numThreadGroups, threadGroupSize, delay, serverURL, callsPerThread, servicePool);
+        loadServerPhase(numThreadGroups, threadGroupSize, delay, serverURL, callsPerThread, servicePool, getReqServicePool, getServerURL);
         end = System.currentTimeMillis();
 
         printResults(numThreadGroups, threadGroupSize, callsPerThread, currentPhase, start, end);
@@ -68,8 +84,16 @@ public class AlbumClient {
      * @param servicePool     - The executor service pool to create and startup threads from.
      * @throws InterruptedException - Is thrown if the waiting thread is interrupted while waiting for the latch.
      */
-    private static void loadServerPhase(int numThreadGroups, int threadGroupSize, long delay, String serverURL, int callsPerThread, ExecutorService servicePool) throws InterruptedException {
+    private static void loadServerPhase(int numThreadGroups, int threadGroupSize, long delay, String serverURL, int callsPerThread, ExecutorService servicePool, ExecutorService getReqServicePool, String getServerURL) throws InterruptedException {
         for (int i = 0; i < numThreadGroups; i++) {
+
+            if (i == 1) {
+                startGETReqs = System.currentTimeMillis();
+                for (int j = 0; j < NUM_THREADS_FOR_GET_REQS; j++) {
+                    getReqServicePool.execute(new GetAlbumRunnable(getServerURL));
+                }
+            }
+
             for (int j = 0; j < threadGroupSize; j++) {
                 servicePool.execute(new AlbumThreadRunnable(callsPerThread, serverURL, false));
             }
@@ -78,9 +102,14 @@ public class AlbumClient {
             sleep(delay * 1000L);
         }
 
+        MAKE_GET_REQS = false;
+
         // Shutdown the executor and wait for all tasks to complete
         totalThreadsLatch.await();
         servicePool.shutdown();
+
+        getReqThreadsLatch.await();
+        getReqServicePool.shutdown();
     }
 
     /**
@@ -111,6 +140,8 @@ public class AlbumClient {
         LoadCalculations loadCalculationsAlbumsPost = new LoadCalculations(albumPost);
         LoadCalculations loadCalculationsLikesPost = new LoadCalculations(likesPost);
         LoadCalculations loadCalculationsDislikesPost = new LoadCalculations(dislikesPost);
+        LoadCalculations loadCalculationsGetReviews = new LoadCalculations(reviewGet);
+
 
         DecimalFormat decimalFormat = new DecimalFormat("#.##");
         double wallTime = (end - start) * 0.001;
@@ -131,6 +162,19 @@ public class AlbumClient {
         printCalculations(decimalFormat, loadCalculationsLikesPost);
         System.out.println("-- Dislike POST Requests --");
         printCalculations(decimalFormat, loadCalculationsDislikesPost);
+
+        System.out.println("-------- Printing Results For GET Reviews --------");
+        System.out.println("Number of Successful Requests: " + SUCCESSFUL_GET_REQ.get());
+        System.out.println("Number of Failed Requests: " + FAILED_GET_REQ.get() + "\n");
+        System.out.println("-------- Results --------");
+        System.out.println("---- Throughput's & Wall Time ----");
+        wallTime = (end - startGETReqs) * 0.001;
+
+        System.out.println("Throughput: " + decimalFormat.format(SUCCESSFUL_GET_REQ.get() / wallTime) + " (req/sec) ---> total successful requests / wall time");
+        System.out.println("Wall Time: " + decimalFormat.format(wallTime) + " (sec)\n");
+        System.out.println("---- Calculations ----");
+        System.out.println("-- GET Requests --");
+        printCalculations(decimalFormat, loadCalculationsGetReviews);
         System.out.println("-------- End of Results For " + currentPhase + " --------");
         System.out.println("-----------------------------------------------------------------------------------------");
     }

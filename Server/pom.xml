@@ -53,5 +53,10 @@
             <artifactId>amqp-client</artifactId>
             <version>5.20.0</version>
         </dependency>
+        <dependency>
+            <groupId>redis.clients</groupId>
+            <artifactId>jedis</artifactId>
+            <version>4.4.3</version>
+        </dependency>
     </dependencies>
 </project>

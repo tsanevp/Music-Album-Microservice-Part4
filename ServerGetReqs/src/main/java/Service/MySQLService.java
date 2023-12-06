@@ -4,17 +4,19 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 public class MySQLService {
-    private static final String DB_URL = "jdbc:mysql://:3306/a3db1";
+    private static final String DB_URL = "";
     private static final String DB_USER = "";
     private static final String DB_PASSWORD = "";
-    private final static int MIN_NUM_CONNECTIONS = 50;
-    private final static int MAX_NUM_CONNECTIONS = 100;
+    private final int minConnections;
+    private final int maxConnections;
     private final HikariDataSource connectionPool;
 
     /**
      * Constructor creating a new connection pool for the mySQL database.
      */
-    public MySQLService() {
+    public MySQLService(int minConnections, int maxConnections) {
+        this.minConnections = minConnections;
+        this.maxConnections = maxConnections;
         this.connectionPool = this.connect();
     }
 
@@ -41,11 +43,11 @@ public class MySQLService {
             config.setJdbcUrl(DB_URL);
             config.setUsername(DB_USER);
             config.setPassword(DB_PASSWORD);
-            config.setMinimumIdle(MIN_NUM_CONNECTIONS);
-            config.setMaximumPoolSize(MAX_NUM_CONNECTIONS);
+            config.setMinimumIdle(this.minConnections);
+            config.setMaximumPoolSize(this.maxConnections);
 
             connectionPool = new HikariDataSource(config);
-            System.out.println("connected to db");
+            System.out.println("connected to mysql db");
         } catch (ClassNotFoundException e) {
             System.err.println("JDBC driver not found");
             e.printStackTrace();

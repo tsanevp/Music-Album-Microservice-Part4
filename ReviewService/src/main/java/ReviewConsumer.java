@@ -1,8 +1,10 @@
 import Controller.ReviewController;
 import Service.MySQLService;
+import Service.RedisService;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.zaxxer.hikari.HikariDataSource;
+import redis.clients.jedis.JedisPool;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -13,6 +15,9 @@ public class ReviewConsumer {
     private final static MySQLService mySQLService = new MySQLService();
     protected static HikariDataSource connectionPool;
 
+    private final static RedisService redisService = new RedisService();
+    protected static JedisPool redisConnectionPool;
+
     private final static String HOST = "";
     private final static String EXCHANGE_NAME = "REVIEW_EXCHANGE";
     private final static String EXCHANGE_TYPE = "direct";
@@ -22,6 +27,7 @@ public class ReviewConsumer {
 
     public static void main(String[] argv) throws Exception {
         connectionPool = mySQLService.getConnectionPool();
+        redisConnectionPool = redisService.getConnectionPool();
 
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost(HOST);

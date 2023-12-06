@@ -4,11 +4,11 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 public class MySQLService {
-    private static final String DB_URL = "jdbc:mysql://:3306/a3db1";
+    private static final String DB_URL = "";
     private static final String DB_USER = "";
     private static final String DB_PASSWORD = "";
     private final static int MIN_NUM_CONNECTIONS = 50;
-    private final static int MAX_NUM_CONNECTIONS = 150;
+    private final static int MAX_NUM_CONNECTIONS = 75;
     private final HikariDataSource connectionPool;
 
     /**

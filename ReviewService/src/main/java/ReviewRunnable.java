@@ -5,6 +5,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.DeliverCallback;
 import com.rabbitmq.client.Delivery;
+import redis.clients.jedis.Jedis;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -64,6 +65,16 @@ public class ReviewRunnable implements Runnable {
             // Increment review type value in DB
             try (java.sql.Connection connection = ReviewConsumer.connectionPool.getConnection()) {
                 int rowsAffected = Objects.equals(reviewType, "like") ? ReviewConsumer.reviewController.addLike(connection, albumId) : ReviewConsumer.reviewController.addDislike(connection, albumId);
+
+//                try (Jedis redisConnection = ReviewConsumer.redisConnectionPool.getResource()) {
+//                    if (Objects.equals(reviewType, "like")) {
+//                        int currentReview = Integer.parseInt(redisConnection.hget(albumId, "NumberOfLikes"));
+//                        redisConnection.hset(albumId, "NumberOfLikes", String.valueOf(currentReview + 1));
+//                    } else {
+//                        int currentReview = Integer.parseInt(redisConnection.hget(albumId, "NumberOfDislikes"));
+//                        redisConnection.hset(albumId, "NumberOfDislikes", String.valueOf(currentReview + 1));
+//                    }
+//                } catch (Exception ignored) {}
 
             } catch (SQLException e) {
                 e.printStackTrace();

@@ -24,6 +24,7 @@ public class AlbumThreadRunnable implements Runnable {
     private final List<Long> likePost;
     private final List<Long> dislikePost;
     private int counter;
+    private final List<String> albumIds;
 
 
     /**
@@ -46,6 +47,7 @@ public class AlbumThreadRunnable implements Runnable {
         this.albumPost = new ArrayList<>();
         this.likePost = new ArrayList<>();
         this.dislikePost = new ArrayList<>();
+        this.albumIds = new ArrayList<>();
 
         this.counter = 1999;
     }
@@ -78,6 +80,7 @@ public class AlbumThreadRunnable implements Runnable {
                     case 0 -> {
                         uuid = getPostUUID(response);
                         this.albumPost.add(currentLatency);
+                        this.albumIds.add(uuid);
                     }
                     case 3 -> this.dislikePost.add(currentLatency);
                     default -> this.likePost.add(currentLatency);
@@ -97,6 +100,7 @@ public class AlbumThreadRunnable implements Runnable {
         AlbumClient.albumPost.addAll(this.albumPost);
         AlbumClient.likesPost.addAll(this.likePost);
         AlbumClient.dislikesPost.addAll(this.dislikePost);
+        AlbumClient.albumIdsToCall.addAll(albumIds);
     }
 
     /**
