@@ -1,6 +1,7 @@
 import Controller.AlbumController;
 import Service.MySQLService;
 import Service.RedisService;
+import Util.Constants;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.zaxxer.hikari.HikariDataSource;
@@ -39,7 +40,7 @@ public class AlbumsServlet extends HttpServlet {
     @Override
     public void init() {
         this.albumController = new AlbumController();
-        this.mySQLService = new MySQLService(100, 200);
+        this.mySQLService = new MySQLService(Constants.MIN_MYSQL_CONNECTIONS, Constants.MAX_MYSQL_CONNECTIONS);
         this.connectionPool = this.mySQLService.getConnectionPool();
 
         this.redisService = new RedisService();
@@ -98,8 +99,9 @@ public class AlbumsServlet extends HttpServlet {
             try (Jedis jedisConnection = this.redisConnectionPool.getResource()) {
                 jedisConnection.hset(uuid, "NumberOfLikes", "0");
                 jedisConnection.hset(uuid, "NumberOfDislikes", "0");
-                jedisConnection.expire(uuid, 600);
-            } catch (Exception ignored){}
+                jedisConnection.expire(uuid, Constants.REDIS_EXPIRE_TIME);
+            } catch (Exception ignored) {
+            }
 
             if (rowsAffected > 0) {
                 res.setStatus(HttpServletResponse.SC_OK);
@@ -184,6 +186,12 @@ public class AlbumsServlet extends HttpServlet {
         return false;
     }
 
+    @Override
+    public void destroy() {
+        this.mySQLService.close();
+        this.redisService.close();
+    }
+
     /**
      * Enum constants that represent different possible endpoints
      */
@@ -195,12 +203,5 @@ public class AlbumsServlet extends HttpServlet {
         Endpoint(Pattern pattern) {
             this.pattern = pattern;
         }
-    }
-
-    @Override
-    public void destroy() {
-
-        this.mySQLService.close();
-        this.redisService.close();
     }
 }

@@ -1,5 +1,6 @@
 package Service;
 
+import Util.Constants;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -9,9 +10,9 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeoutException;
 
 public class RabbitMQService {
-    private final static int CHANNEL_POOL_SIZE = 120;
 
-    public RabbitMQService() {}
+    public RabbitMQService() {
+    }
 
     /**
      * Method to create the pool of channels to RabbitMQ.
@@ -24,10 +25,9 @@ public class RabbitMQService {
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost(host);
 
-        try {
-            Connection connection = factory.newConnection();
+        try (Connection connection = factory.newConnection()) {
 
-            for (int i = 0; i < CHANNEL_POOL_SIZE; i++) {
+            for (int i = 0; i < Constants.CHANNEL_POOL_SIZE; i++) {
                 Channel channel = connection.createChannel();
                 channel.exchangeDeclare(exchangeName, exchangeType);
                 channelPool.add(channel);

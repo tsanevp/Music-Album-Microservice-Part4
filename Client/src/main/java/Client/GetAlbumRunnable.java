@@ -10,9 +10,9 @@ import java.util.List;
 
 public class GetAlbumRunnable implements Runnable {
     private final LikeApi likeApi;
+    private final List<Long> reviewGet;
     private int successfulReq;
     private int failedReq;
-    private final List<Long> reviewGet;
 
 
     /**
@@ -110,7 +110,7 @@ public class GetAlbumRunnable implements Runnable {
     private void sleepThread(int numTries) {
         try {
             Thread.sleep(2 ^ numTries);
-        } catch (InterruptedException e){
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }

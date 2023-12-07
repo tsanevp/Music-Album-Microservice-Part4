@@ -1,5 +1,6 @@
 package Client;
 
+import Util.Constants;
 import io.swagger.client.ApiClient;
 import io.swagger.client.ApiException;
 import io.swagger.client.ApiResponse;
@@ -18,13 +19,13 @@ public class AlbumThreadRunnable implements Runnable {
     private final DefaultApi albumsApi;
     private final LikeApi likeApi;
     private final boolean initializationPhase;
-    private int successfulReq;
-    private int failedReq;
     private final List<Long> albumPost;
     private final List<Long> likePost;
     private final List<Long> dislikePost;
-    private int counter;
     private final List<String> albumIds;
+    private int successfulReq;
+    private int failedReq;
+    private int counter;
 
 
     /**
@@ -141,7 +142,7 @@ public class AlbumThreadRunnable implements Runnable {
      * @throws ApiException - If fails to call the API, e.g. server error or cannot deserialize the response body.
      */
     private ApiResponse<ImageMetaData> postAlbum() throws ApiException {
-        File image = new File("src/main/java/testingImage.png");
+        File image = new File(Constants.IMAGE_PATH);
         AlbumsProfile profile = new AlbumsProfile().artist("Monkey D. Luffy").title("One Piece").year(String.valueOf(this.counter++));
         return this.albumsApi.newAlbumWithHttpInfo(image, profile);
     }
@@ -179,7 +180,7 @@ public class AlbumThreadRunnable implements Runnable {
     private void sleepThread(int numTries) {
         try {
             Thread.sleep(2 ^ numTries);
-        } catch (InterruptedException e){
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }

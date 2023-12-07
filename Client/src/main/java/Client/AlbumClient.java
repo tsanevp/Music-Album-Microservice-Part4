@@ -1,5 +1,7 @@
 package Client;
 
+import Util.Constants;
+
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -13,15 +15,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static java.lang.Thread.sleep;
 
 public class AlbumClient {
-    private static final int INITIAL_THREAD_COUNT = 10;
-    private static final int INITIAL_CALLS_PER_THREAD = 100;
-    private static final int NUM_THREADS_FOR_GET_REQS = 3;
-    protected static boolean MAKE_GET_REQS = true;
     protected static final AtomicInteger SUCCESSFUL_REQ = new AtomicInteger(0);
     protected static final AtomicInteger FAILED_REQ = new AtomicInteger(0);
-
     protected static final AtomicInteger SUCCESSFUL_GET_REQ = new AtomicInteger(0);
     protected static final AtomicInteger FAILED_GET_REQ = new AtomicInteger(0);
+    protected static boolean MAKE_GET_REQS = true;
     protected static List<Long> albumPost = Collections.synchronizedList(new ArrayList<>());
     protected static List<Long> likesPost = Collections.synchronizedList(new ArrayList<>());
     protected static List<Long> dislikesPost = Collections.synchronizedList(new ArrayList<>());
@@ -43,22 +41,21 @@ public class AlbumClient {
         String serverURL = args[3];
         String getServerURL = args[4];
 
-        // Thread calls and calculations
-        int callsPerThread = 100;
+        // Max thread count
         int maxThreads = threadGroupSize * numThreadGroups;
 
         // Executor service used for thread pooling and countdown latch to track when loading is complete
         ExecutorService servicePool = Executors.newFixedThreadPool(maxThreads);
-        totalThreadsLatch = new CountDownLatch(INITIAL_THREAD_COUNT);
+        totalThreadsLatch = new CountDownLatch(Constants.INITIAL_THREAD_COUNT);
 
         // Executor service used to make continuous GET requests
-        ExecutorService getReqServicePool = Executors.newFixedThreadPool(NUM_THREADS_FOR_GET_REQS);
-        getReqThreadsLatch = new CountDownLatch(NUM_THREADS_FOR_GET_REQS);
+        ExecutorService getReqServicePool = Executors.newFixedThreadPool(Constants.NUM_THREADS_FOR_GET_REQS);
+        getReqThreadsLatch = new CountDownLatch(Constants.NUM_THREADS_FOR_GET_REQS);
 
         // Run initialization phase
-        start = System.currentTimeMillis();
+//        start = System.currentTimeMillis();
         initializationPhase(servicePool, serverURL);
-        end = System.currentTimeMillis();
+//        end = System.currentTimeMillis();
 //        printResults(1, INITIAL_THREAD_COUNT, INITIAL_CALLS_PER_THREAD, "Initialization Phase Results", start, end);
 
         // Redefine countdown latch for server loading
@@ -66,10 +63,10 @@ public class AlbumClient {
 
         // Load Server
         start = System.currentTimeMillis();
-        loadServerPhase(numThreadGroups, threadGroupSize, delay, serverURL, callsPerThread, servicePool, getReqServicePool, getServerURL);
+        loadServerPhase(numThreadGroups, threadGroupSize, delay, serverURL, servicePool, getReqServicePool, getServerURL);
         end = System.currentTimeMillis();
 
-        printResults(numThreadGroups, threadGroupSize, callsPerThread, currentPhase, start, end);
+        printResults(numThreadGroups, threadGroupSize, currentPhase, start, end);
     }
 
     /**
@@ -80,22 +77,21 @@ public class AlbumClient {
      * @param threadGroupSize - The number of threads to create in each group.
      * @param delay           - The delay the main thread should wait for between each thread group execution.
      * @param serverURL       - The server url each request should target.
-     * @param callsPerThread  - The amount of requests each POST & GET methods should make in a single thread.
      * @param servicePool     - The executor service pool to create and startup threads from.
      * @throws InterruptedException - Is thrown if the waiting thread is interrupted while waiting for the latch.
      */
-    private static void loadServerPhase(int numThreadGroups, int threadGroupSize, long delay, String serverURL, int callsPerThread, ExecutorService servicePool, ExecutorService getReqServicePool, String getServerURL) throws InterruptedException {
+    private static void loadServerPhase(int numThreadGroups, int threadGroupSize, long delay, String serverURL, ExecutorService servicePool, ExecutorService getReqServicePool, String getServerURL) throws InterruptedException {
         for (int i = 0; i < numThreadGroups; i++) {
 
             if (i == 1) {
                 startGETReqs = System.currentTimeMillis();
-                for (int j = 0; j < NUM_THREADS_FOR_GET_REQS; j++) {
+                for (int j = 0; j < Constants.NUM_THREADS_FOR_GET_REQS; j++) {
                     getReqServicePool.execute(new GetAlbumRunnable(getServerURL));
                 }
             }
 
             for (int j = 0; j < threadGroupSize; j++) {
-                servicePool.execute(new AlbumThreadRunnable(callsPerThread, serverURL, false));
+                servicePool.execute(new AlbumThreadRunnable(Constants.CALLS_PER_THREAD, serverURL, false));
             }
 
             // Sleep for delay amount of time, converted to seconds
@@ -120,8 +116,8 @@ public class AlbumClient {
      * @throws InterruptedException - Is thrown if the waiting thread is interrupted while waiting for the latch.
      */
     private static void initializationPhase(ExecutorService servicePool, String serverURL) throws InterruptedException {
-        for (int i = 0; i < INITIAL_THREAD_COUNT; i++) {
-            servicePool.execute(new AlbumThreadRunnable(INITIAL_CALLS_PER_THREAD, serverURL, true));
+        for (int i = 0; i < Constants.INITIAL_THREAD_COUNT; i++) {
+            servicePool.execute(new AlbumThreadRunnable(Constants.INITIAL_CALLS_PER_THREAD, serverURL, true));
         }
         totalThreadsLatch.await();
     }
@@ -131,12 +127,11 @@ public class AlbumClient {
      *
      * @param numThreadGroups - The number of thread groups ran.
      * @param threadGroupSize - The number of threads created in each group.
-     * @param callsPerThread  - The number of GET and POST requests each thread makes.
      * @param currentPhase    - The name of the current loading phase.
-     * @param end             - The end time of the current phase.
      * @param start           - The start time of the current phase.
+     * @param end             - The end time of the current phase.
      */
-    protected static void printResults(int numThreadGroups, int threadGroupSize, int callsPerThread, String currentPhase, long start, long end) {
+    protected static void printResults(int numThreadGroups, int threadGroupSize, String currentPhase, long start, long end) {
         LoadCalculations loadCalculationsAlbumsPost = new LoadCalculations(albumPost);
         LoadCalculations loadCalculationsLikesPost = new LoadCalculations(likesPost);
         LoadCalculations loadCalculationsDislikesPost = new LoadCalculations(dislikesPost);
@@ -148,7 +143,7 @@ public class AlbumClient {
 
         System.out.println("-----------------------------------------------------------------------------------------");
         System.out.println("-------- Printing Results For " + currentPhase + " --------");
-        System.out.println("Thread Groups = " + numThreadGroups + ", Number of Threads per Group = " + threadGroupSize + ", Call per Thread = " + callsPerThread);
+        System.out.println("Thread Groups = " + numThreadGroups + ", Number of Threads per Group = " + threadGroupSize + ", Call per Thread = " + Constants.CALLS_PER_THREAD);
         System.out.println("Number of Successful Requests: " + SUCCESSFUL_REQ.get());
         System.out.println("Number of Failed Requests: " + FAILED_REQ.get() + "\n");
         System.out.println("-------- Results --------");

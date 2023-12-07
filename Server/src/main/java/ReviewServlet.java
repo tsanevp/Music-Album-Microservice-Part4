@@ -1,4 +1,5 @@
 import Service.RabbitMQService;
+import Util.Constants;
 import com.google.gson.Gson;
 import com.rabbitmq.client.Channel;
 
@@ -15,15 +16,12 @@ import java.util.regex.Pattern;
 
 @WebServlet(name = "ReviewServlet", value = "/review/*")
 public class ReviewServlet extends HttpServlet {
-    private final String EXCHANGE_NAME = "REVIEW_EXCHANGE";
     private final RabbitMQService rabbitMQService = new RabbitMQService();
     private ConcurrentLinkedDeque<Channel> channelPool;
 
     @Override
     public void init() {
-        String HOST = "";
-        String EXCHANGE_TYPE = "direct";
-        this.channelPool = this.rabbitMQService.createChannelPool(HOST, EXCHANGE_NAME, EXCHANGE_TYPE);
+        this.channelPool = this.rabbitMQService.createChannelPool(Constants.RABBITMQ_HOST, Constants.EXCHANGE_NAME, Constants.EXCHANGE_TYPE);
     }
 
     @Override
@@ -61,7 +59,7 @@ public class ReviewServlet extends HttpServlet {
         Channel channel = null;
         try {
             channel = this.channelPool.removeFirst();
-            channel.basicPublish(EXCHANGE_NAME, reviewType, null, messageToSend.getBytes(StandardCharsets.UTF_8));
+            channel.basicPublish(Constants.EXCHANGE_NAME, reviewType, null, messageToSend.getBytes(StandardCharsets.UTF_8));
 
             res.setStatus(HttpServletResponse.SC_CREATED);
             res.getWriter().write("Review sent");
@@ -93,6 +91,11 @@ public class ReviewServlet extends HttpServlet {
         return false;
     }
 
+    @Override
+    public void destroy() {
+        this.rabbitMQService.closeChannelPool(this.channelPool);
+    }
+
     /**
      * Enum constants that represent different review endpoints
      */
@@ -104,10 +107,5 @@ public class ReviewServlet extends HttpServlet {
         Endpoint(Pattern pattern) {
             this.pattern = pattern;
         }
-    }
-
-    @Override
-    public void destroy() {
-        this.rabbitMQService.closeChannelPool(this.channelPool);
     }
 }
