@@ -23,6 +23,7 @@ public class GetAlbumRunnable implements Runnable {
     public GetAlbumRunnable(String serverUrl) {
         ApiClient apiClient = new ApiClient();
         apiClient.setBasePath(serverUrl);
+        apiClient.setReadTimeout(45);
         this.likeApi = new LikeApi(apiClient);
 
         this.successfulReq = 0;
@@ -32,27 +33,18 @@ public class GetAlbumRunnable implements Runnable {
 
     @Override
     public void run() {
-        long start, end, currentLatency;
+        long start, end;
         while (AlbumClient.MAKE_GET_REQS) {
-            try {
-                String albumId = AlbumClient.albumIdsToCall.pollFirst();
-                start = System.currentTimeMillis();
-                ApiResponse<?> response = getAlbumReview(albumId);
-                end = System.currentTimeMillis();
-
-                int statusCode = response.getStatusCode();
-                if (statusCode == 200) {
-                    this.successfulReq += 1;
-                } else {
-                    this.failedReq += 1;
-                }
-
-                currentLatency = end - start;
-                this.reviewGet.add(currentLatency);
-
-                AlbumClient.albumIdsToCall.add(albumId);
-            } catch (Exception ignored) {
+            if (AlbumClient.albumIdsToCall.isEmpty()) {
+                continue;
             }
+
+            String albumId = AlbumClient.albumIdsToCall.get(AlbumClient.randomInt.nextInt(AlbumClient.albumIdsToCall.size()));
+
+            start = System.currentTimeMillis();
+            getAlbumReview(albumId);
+            end = System.currentTimeMillis();
+            this.reviewGet.add(end - start);
         }
 
         AlbumClient.getReqThreadsLatch.countDown();
@@ -64,54 +56,22 @@ public class GetAlbumRunnable implements Runnable {
     }
 
     /**
-     * Method that makes a request to the given Api instance. If the request fails, will re-try up to MAX_ATTEMPT times.
-     */
-    private void makeApiRequest(String albumId) {
-        ApiResponse<?> response = null;
-        int attempts = 0;
-
-        int maxRetries = 5;
-        while (attempts < maxRetries) {
-            try {
-                response = getAlbumReview(albumId);
-                int statusCode = response.getStatusCode();
-                if (statusCode == 200) {
-                    this.successfulReq += 1;
-                    return;
-                }
-                sleepThread(attempts++);
-            } catch (ApiException e) {
-                sleepThread(attempts++);
-            }
-        }
-
-        this.failedReq += 1;
-
-        // The response code is expected to never be null. Can only be null if all attempts throw exception.
-        assert response != null;
-    }
-
-    /**
      * Method to make a GET Review request.
      *
      * @param albumId - The album ID to get the review data for.
-     * @return - The response of the api call.
-     * @throws ApiException - If fails to call the API, e.g. server error or cannot deserialize the response body.
      */
-    private ApiResponse<?> getAlbumReview(String albumId) throws ApiException {
-        return this.likeApi.getLikesWithHttpInfo(albumId);
-    }
-
-    /**
-     * Method to prevent cascading failures. Introduced exponential backoff.
-     *
-     * @param numTries - The current attempt used to defined how long the thread should sleep.
-     */
-    private void sleepThread(int numTries) {
+    private void getAlbumReview(String albumId) {
         try {
-            Thread.sleep(2 ^ numTries);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            ApiResponse<?> response = this.likeApi.getLikesWithHttpInfo(albumId);
+
+            if (response.getStatusCode() != 200) {
+                throw new Exception("Failed");
+            }
+
+            this.successfulReq += 1;
+
+        } catch (Exception e) {
+            this.failedReq += 1;
         }
     }
 }

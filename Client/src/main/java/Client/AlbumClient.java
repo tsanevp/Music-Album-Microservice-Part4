@@ -1,12 +1,13 @@
 package Client;
 
 import Util.Constants;
+import Util.LoadCalculations;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,10 +25,14 @@ public class AlbumClient {
     protected static List<Long> likesPost = Collections.synchronizedList(new ArrayList<>());
     protected static List<Long> dislikesPost = Collections.synchronizedList(new ArrayList<>());
     protected static List<Long> reviewGet = Collections.synchronizedList(new ArrayList<>());
-    protected static ConcurrentLinkedDeque<String> albumIdsToCall = new ConcurrentLinkedDeque<>();
+//    protected static ConcurrentLinkedDeque<String> albumIdsToCall = new ConcurrentLinkedDeque<>();
+    protected static List<String> albumIdsToCall = Collections.synchronizedList(new ArrayList<>());
+
     protected static CountDownLatch totalThreadsLatch;
     protected static CountDownLatch getReqThreadsLatch;
     private static long startGETReqs;
+
+    protected static final Random randomInt = new Random();
 
 
     public static void main(String[] args) throws InterruptedException {
@@ -51,6 +56,10 @@ public class AlbumClient {
         // Executor service used to make continuous GET requests
         ExecutorService getReqServicePool = Executors.newFixedThreadPool(Constants.NUM_THREADS_FOR_GET_REQS);
         getReqThreadsLatch = new CountDownLatch(Constants.NUM_THREADS_FOR_GET_REQS);
+
+        for (int j = 0; j < Constants.NUM_THREADS_FOR_GET_REQS; j++) {
+            getReqServicePool.execute(new GetAlbumRunnable(getServerURL));
+        }
 
         // Run initialization phase
 //        start = System.currentTimeMillis();
@@ -85,9 +94,6 @@ public class AlbumClient {
 
             if (i == 1) {
                 startGETReqs = System.currentTimeMillis();
-                for (int j = 0; j < Constants.NUM_THREADS_FOR_GET_REQS; j++) {
-                    getReqServicePool.execute(new GetAlbumRunnable(getServerURL));
-                }
             }
 
             for (int j = 0; j < threadGroupSize; j++) {
@@ -98,12 +104,11 @@ public class AlbumClient {
             sleep(delay * 1000L);
         }
 
-        MAKE_GET_REQS = false;
-
         // Shutdown the executor and wait for all tasks to complete
         totalThreadsLatch.await();
         servicePool.shutdown();
 
+        MAKE_GET_REQS = false;
         getReqThreadsLatch.await();
         getReqServicePool.shutdown();
     }
