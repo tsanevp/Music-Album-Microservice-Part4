@@ -10,8 +10,8 @@ public class Constants {
 
     // MySQL Constants
     public static final String MYSQL_DB_URL = "jdbc:mysql://:3306/a3db1";
-    public static final String MYSQL_DB_USER = "user";
-    public static final String MYSQL_DB_PASSWORD = "pw";
+    public static final String MYSQL_DB_USER = "";
+    public static final String MYSQL_DB_PASSWORD = "";
     public final static int MIN_MYSQL_CONNECTIONS = 100;
     public final static int MAX_MYSQL_CONNECTIONS = 190;
 
@@ -21,5 +21,5 @@ public class Constants {
     public final static int MIN_REDIS_CONNECTIONS = 100;
     public final static int MAX_REDIS_CONNECTIONS = 200;
     public final static int MAX_REDIS_WAIT = 2500;
-    public final static int REDIS_EXPIRE_TIME = 20;
+    public final static int REDIS_EXPIRE_TIME = 60;
 }

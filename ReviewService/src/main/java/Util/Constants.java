@@ -12,8 +12,8 @@ public class Constants {
 
     // MySQL Constants
     public static final String DB_URL = "jdbc:mysql://:3306/a3db1";
-    public static final String DB_USER = "user";
-    public static final String DB_PASSWORD = "pw";
+    public static final String DB_USER = "";
+    public static final String DB_PASSWORD = "";
     public final static int MIN_NUM_CONNECTIONS = 50;
     public final static int MAX_NUM_CONNECTIONS = 75;
 

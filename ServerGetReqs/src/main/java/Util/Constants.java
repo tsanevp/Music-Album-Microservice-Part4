@@ -4,8 +4,8 @@ public class Constants {
 
     // MySQL Constants
     public static final String MYSQL_DB_URL = "jdbc:mysql://:3306/a3db1";
-    public static final String MYSQL_DB_USER = "user";
-    public static final String MYSQL_DB_PASSWORD = "pw";
+    public static final String MYSQL_DB_USER = "";
+    public static final String MYSQL_DB_PASSWORD = "";
 
     // Redis Constants
     public static final String REDIS_HOST = "";
