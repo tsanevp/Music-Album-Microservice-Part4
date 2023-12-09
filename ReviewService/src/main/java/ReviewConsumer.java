@@ -37,7 +37,10 @@ public class ReviewConsumer {
             servicePoolDislikes.execute(new ReviewRunnable(connectionDislikes, Constants.EXCHANGE_NAME, Constants.EXCHANGE_TYPE, Constants.DISLIKE_QUEUE));
         }
 
-        Runtime.getRuntime().addShutdownHook(new Thread(mySQLService::close));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            mySQLService.close();
+            redisService.close();
+        }));
     }
 }
 

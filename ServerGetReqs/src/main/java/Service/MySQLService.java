@@ -1,12 +1,10 @@
 package Service;
 
+import Util.Constants;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 public class MySQLService {
-    private static final String DB_URL = "";
-    private static final String DB_USER = "";
-    private static final String DB_PASSWORD = "";
     private final int minConnections;
     private final int maxConnections;
     private final HikariDataSource connectionPool;
@@ -40,9 +38,9 @@ public class MySQLService {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             HikariConfig config = new HikariConfig();
-            config.setJdbcUrl(DB_URL);
-            config.setUsername(DB_USER);
-            config.setPassword(DB_PASSWORD);
+            config.setJdbcUrl(Constants.MYSQL_DB_URL);
+            config.setUsername(Constants.MYSQL_DB_USER);
+            config.setPassword(Constants.MYSQL_DB_PASSWORD);
             config.setMinimumIdle(this.minConnections);
             config.setMaximumPoolSize(this.maxConnections);
 

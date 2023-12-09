@@ -7,10 +7,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.Thread.sleep;
@@ -25,19 +22,17 @@ public class AlbumClient {
     protected static List<Long> likesPost = Collections.synchronizedList(new ArrayList<>());
     protected static List<Long> dislikesPost = Collections.synchronizedList(new ArrayList<>());
     protected static List<Long> reviewGet = Collections.synchronizedList(new ArrayList<>());
-//    protected static ConcurrentLinkedDeque<String> albumIdsToCall = new ConcurrentLinkedDeque<>();
-    protected static List<String> albumIdsToCall = Collections.synchronizedList(new ArrayList<>());
+    protected static BlockingQueue<String> albumIdsToCall = new LinkedBlockingQueue<>();
 
     protected static CountDownLatch totalThreadsLatch;
     protected static CountDownLatch getReqThreadsLatch;
-    private static long startGETReqs;
+    protected static CountDownLatch getReqWaitToStartLatch;
 
-    protected static final Random randomInt = new Random();
-
+    protected static long startGETReqs;
 
     public static void main(String[] args) throws InterruptedException {
         long start, end;
-        String currentPhase = "Loading Java Server Phase - 1 Servlet (t2.medium), 1 DB (db.t3.medium, 250 Connections)";
+        String currentPhase = "Loading Java Server Phase";
 
         // Define starting constants
         int threadGroupSize = Integer.parseInt(args[0]);
@@ -56,16 +51,14 @@ public class AlbumClient {
         // Executor service used to make continuous GET requests
         ExecutorService getReqServicePool = Executors.newFixedThreadPool(Constants.NUM_THREADS_FOR_GET_REQS);
         getReqThreadsLatch = new CountDownLatch(Constants.NUM_THREADS_FOR_GET_REQS);
+        getReqWaitToStartLatch = new CountDownLatch(1);
 
         for (int j = 0; j < Constants.NUM_THREADS_FOR_GET_REQS; j++) {
             getReqServicePool.execute(new GetAlbumRunnable(getServerURL));
         }
 
         // Run initialization phase
-//        start = System.currentTimeMillis();
         initializationPhase(servicePool, serverURL);
-//        end = System.currentTimeMillis();
-//        printResults(1, INITIAL_THREAD_COUNT, INITIAL_CALLS_PER_THREAD, "Initialization Phase Results", start, end);
 
         // Redefine countdown latch for server loading
         totalThreadsLatch = new CountDownLatch(maxThreads);
@@ -91,11 +84,6 @@ public class AlbumClient {
      */
     private static void loadServerPhase(int numThreadGroups, int threadGroupSize, long delay, String serverURL, ExecutorService servicePool, ExecutorService getReqServicePool, String getServerURL) throws InterruptedException {
         for (int i = 0; i < numThreadGroups; i++) {
-
-            if (i == 1) {
-                startGETReqs = System.currentTimeMillis();
-            }
-
             for (int j = 0; j < threadGroupSize; j++) {
                 servicePool.execute(new AlbumThreadRunnable(Constants.CALLS_PER_THREAD, serverURL, false));
             }
@@ -106,9 +94,9 @@ public class AlbumClient {
 
         // Shutdown the executor and wait for all tasks to complete
         totalThreadsLatch.await();
-        servicePool.shutdown();
-
         MAKE_GET_REQS = false;
+
+        servicePool.shutdown();
         getReqThreadsLatch.await();
         getReqServicePool.shutdown();
     }

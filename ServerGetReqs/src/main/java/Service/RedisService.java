@@ -1,13 +1,12 @@
 package Service;
 
+import Util.Constants;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
 import java.time.Duration;
 
 public class RedisService {
-    private static final String REDIS_HOST = "";
-    private static final int REDIS_PORT = 6379;
     private final JedisPool connectionPool;
 
     /**
@@ -33,7 +32,7 @@ public class RedisService {
      */
     private JedisPool connect() {
         JedisPoolConfig config = getJedisPoolConfig();
-        JedisPool connectionPool = new JedisPool(config, REDIS_HOST, REDIS_PORT);
+        JedisPool connectionPool = new JedisPool(config, Constants.REDIS_HOST, Constants.REDIS_PORT);
         System.out.println("connected to redis db");
 
         return connectionPool;
@@ -41,12 +40,11 @@ public class RedisService {
 
     private JedisPoolConfig getJedisPoolConfig() {
         JedisPoolConfig config = new JedisPoolConfig();
-        config.setMinIdle(3);
-        config.setMaxIdle(3);
-        config.setMaxTotal(5);
+        config.setMinIdle(Constants.MIN_REDIS_CONNECTIONS);
+        config.setMaxTotal(Constants.MAX_REDIS_CONNECTIONS);
+        config.setMaxWait(Duration.ofMillis(Constants.MAX_REDIS_WAIT));
         config.setBlockWhenExhausted(true);
         config.setTestOnBorrow(true);
-        config.setMaxWait(Duration.ofMillis(2500));
 
         return config;
     }

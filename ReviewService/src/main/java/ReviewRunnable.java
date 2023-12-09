@@ -6,6 +6,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.DeliverCallback;
 import com.rabbitmq.client.Delivery;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.Pipeline;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -67,13 +68,14 @@ public class ReviewRunnable implements Runnable {
                 int rowsAffected = Objects.equals(reviewType, "like") ? ReviewConsumer.reviewController.addLike(connection, albumId) : ReviewConsumer.reviewController.addDislike(connection, albumId);
 
 //                try (Jedis redisConnection = ReviewConsumer.redisConnectionPool.getResource()) {
+//                    Pipeline pipeline = redisConnection.pipelined();
 //                    if (Objects.equals(reviewType, "like")) {
-//                        int currentReview = Integer.parseInt(redisConnection.hget(albumId, "NumberOfLikes"));
-//                        redisConnection.hset(albumId, "NumberOfLikes", String.valueOf(currentReview + 1));
+//                        pipeline.hincrBy(albumId, "NumberOfLikes", 1);
 //                    } else {
-//                        int currentReview = Integer.parseInt(redisConnection.hget(albumId, "NumberOfDislikes"));
-//                        redisConnection.hset(albumId, "NumberOfDislikes", String.valueOf(currentReview + 1));
+//
+//                        pipeline.hincrBy(albumId, "NumberOfDislikes", 1);
 //                    }
+//                    pipeline.sync();
 //                } catch (Exception ignored) {}
 
             } catch (SQLException e) {

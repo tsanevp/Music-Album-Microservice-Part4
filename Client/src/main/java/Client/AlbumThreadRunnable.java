@@ -27,7 +27,6 @@ public class AlbumThreadRunnable implements Runnable {
     private int failedReq;
     private int counter;
 
-
     /**
      * Class constructor used to create a thread runnable.
      *
@@ -64,73 +63,62 @@ public class AlbumThreadRunnable implements Runnable {
         // Perform 1000 POST & GET requests
         for (int k = 0; k < this.numReqs; k++) {
 //          // For loop to send 4 POST requests (1 album POST, 3 review POSTs - 2 likes, 1 dislike)
-//            for (int i = 0; i < 4; i++) {
-//                requestParameters = switch (i) {
-//                    case 0 -> new String[]{"albumPost", null};
-//                    case 1, 2 -> new String[]{"like", uuid};
-//                    case 3 -> new String[]{"dislike", uuid};
-//                    default -> new String[]{};
-//                };
+            for (int i = 0; i < 4; i++) {
+                requestParameters = switch (i) {
+                    case 0 -> new String[]{"albumPost", null};
+                    case 1, 2 -> new String[]{"like", uuid};
+                    case 3 -> new String[]{"dislike", uuid};
+                    default -> new String[]{};
+                };
+
+                start = System.currentTimeMillis();
+                response = makeApiRequest(requestParameters);
+                end = System.currentTimeMillis();
+                currentLatency = end - start;
+
+                switch (i) {
+                    case 0 -> {
+                        uuid = getPostUUID(response);
+                        this.albumPost.add(currentLatency);
+                        this.albumIds.add(uuid);
+                    }
+                    case 3 -> this.dislikePost.add(currentLatency);
+                    default -> this.likePost.add(currentLatency);
+                }
+            }
+//            requestParameters = new String[]{"albumPost", null};
+//            start = System.currentTimeMillis();
+//            response = makeApiRequest(requestParameters);
+//            end = System.currentTimeMillis();
+//            currentLatency = end - start;
 //
-//                start = System.currentTimeMillis();
-//                response = makeApiRequest(requestParameters);
-//                end = System.currentTimeMillis();
-//                currentLatency = end - start;
+//            uuid = getPostUUID(response);
+//            this.albumPost.add(currentLatency);
+//            this.albumIds.add(uuid);
 //
-//                switch (i) {
-//                    case 0 -> {
-//                        uuid = getPostUUID(response);
-//                        this.albumPost.add(currentLatency);
-//                        this.albumIds.add(uuid);
-//                    }
-//                    case 3 -> this.dislikePost.add(currentLatency);
-//                    default -> this.likePost.add(currentLatency);
-//                }
-//            }
-            requestParameters = new String[]{"albumPost", null};
-            start = System.currentTimeMillis();
-            response = makeApiRequest(requestParameters);
-            end = System.currentTimeMillis();
-            currentLatency = end - start;
-
-            uuid = getPostUUID(response);
-            this.albumPost.add(currentLatency);
-            this.albumIds.add(uuid);
-
-            requestParameters = new String[]{"like", uuid};
-            start = System.currentTimeMillis();
-            response = makeApiRequest(requestParameters);
-            end = System.currentTimeMillis();
-            currentLatency = end - start;
-
-            this.likePost.add(currentLatency);
-
-            requestParameters = new String[]{"like", uuid};
-            start = System.currentTimeMillis();
-            response = makeApiRequest(requestParameters);
-            end = System.currentTimeMillis();
-            currentLatency = end - start;
-
-            this.likePost.add(currentLatency);
-
-            requestParameters = new String[]{"dislike", uuid};
-            start = System.currentTimeMillis();
-            response = makeApiRequest(requestParameters);
-            end = System.currentTimeMillis();
-            currentLatency = end - start;
-
-            this.dislikePost.add(currentLatency);
-
-//                switch (i) {
-//                    case 0 -> {
-//                        uuid = getPostUUID(response);
-//                        this.albumPost.add(currentLatency);
-//                        this.albumIds.add(uuid);
-//                    }
-//                    case 3 -> this.dislikePost.add(currentLatency);
-//                    default -> this.likePost.add(currentLatency);
-//                }
-//            }
+//            requestParameters = new String[]{"like", uuid};
+//            start = System.currentTimeMillis();
+//            response = makeApiRequest(requestParameters);
+//            end = System.currentTimeMillis();
+//            currentLatency = end - start;
+//
+//            this.likePost.add(currentLatency);
+//
+//            requestParameters = new String[]{"like", uuid};
+//            start = System.currentTimeMillis();
+//            response = makeApiRequest(requestParameters);
+//            end = System.currentTimeMillis();
+//            currentLatency = end - start;
+//
+//            this.likePost.add(currentLatency);
+//
+//            requestParameters = new String[]{"dislike", uuid};
+//            start = System.currentTimeMillis();
+//            response = makeApiRequest(requestParameters);
+//            end = System.currentTimeMillis();
+//            currentLatency = end - start;
+//
+//            this.dislikePost.add(currentLatency);
         }
 
         // Decrement count down latch
@@ -146,6 +134,10 @@ public class AlbumThreadRunnable implements Runnable {
         AlbumClient.likesPost.addAll(this.likePost);
         AlbumClient.dislikesPost.addAll(this.dislikePost);
         AlbumClient.albumIdsToCall.addAll(albumIds);
+        if (AlbumClient.getReqWaitToStartLatch.getCount() == 1) {
+            AlbumClient.getReqWaitToStartLatch.countDown();
+            AlbumClient.startGETReqs = System.currentTimeMillis();
+        }
     }
 
     /**

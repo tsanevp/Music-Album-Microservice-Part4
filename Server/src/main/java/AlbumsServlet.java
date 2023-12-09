@@ -9,6 +9,7 @@ import io.swagger.client.model.AlbumsProfile;
 import io.swagger.client.model.ImageMetaData;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.Pipeline;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
@@ -97,9 +98,11 @@ public class AlbumsServlet extends HttpServlet {
             int rowsAffected = this.albumController.postToDatabase(connection, uuid, imageData, albumProfile);
 
             try (Jedis jedisConnection = this.redisConnectionPool.getResource()) {
-                jedisConnection.hset(uuid, "NumberOfLikes", "0");
-                jedisConnection.hset(uuid, "NumberOfDislikes", "0");
-                jedisConnection.expire(uuid, Constants.REDIS_EXPIRE_TIME);
+                Pipeline pipeline = jedisConnection.pipelined();
+                pipeline.hset(uuid, "NumberOfLikes", "0");
+                pipeline.hset(uuid, "NumberOfDislikes", "0");
+                pipeline.expire(uuid, Constants.REDIS_EXPIRE_TIME);
+                pipeline.sync();
             } catch (Exception ignored) {
             }
 

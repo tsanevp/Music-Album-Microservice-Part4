@@ -11,8 +11,7 @@ import java.util.concurrent.TimeoutException;
 
 public class RabbitMQService {
 
-    public RabbitMQService() {
-    }
+    public RabbitMQService() {}
 
     /**
      * Method to create the pool of channels to RabbitMQ.
@@ -25,7 +24,8 @@ public class RabbitMQService {
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost(host);
 
-        try (Connection connection = factory.newConnection()) {
+        try {
+            Connection connection = factory.newConnection();
 
             for (int i = 0; i < Constants.CHANNEL_POOL_SIZE; i++) {
                 Channel channel = connection.createChannel();

@@ -5,6 +5,8 @@ import com.google.gson.Gson;
 import com.zaxxer.hikari.HikariDataSource;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.Pipeline;
+import redis.clients.jedis.Response;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -50,17 +52,19 @@ public class ReviewServlet extends HttpServlet {
         String albumId = urlPath.split("/")[1];
 
         try (Jedis connection = redisConnectionPool.getResource()) {
-            String numberOfLikes = connection.hget(albumId, "NumberOfLikes");
-            String numberOfDislikes = connection.hget(albumId, "NumberOfDislikes");
+            Pipeline pipeline = connection.pipelined();
+            Response<String> likesResponse = pipeline.hget(albumId, "NumberOfLikes");
+            Response<String> dislikesResponse = pipeline.hget(albumId, "NumberOfDislikes");
+            pipeline.sync();
+
+            String numberOfLikes = likesResponse.get();
+            String numberOfDislikes = dislikesResponse.get();
 
             if (numberOfLikes == null || numberOfDislikes == null) {
                 throw new Exception("Redis query failed");
             }
 
-            HashMap<String, String> messageData = new HashMap<>();
-            messageData.put("likes", numberOfLikes);
-            messageData.put("dislikes", numberOfDislikes);
-            String messageToSend = new Gson().toJson(messageData);
+            String messageToSend = "{\"likes\":\"" + numberOfLikes + "\",\"dislikes\":\"" + numberOfDislikes + "\"}";
 
             res.setStatus(HttpServletResponse.SC_OK);
             res.getWriter().write(messageToSend);
@@ -71,12 +75,9 @@ public class ReviewServlet extends HttpServlet {
                 if (resultSet.next()) {
                     res.setStatus(HttpServletResponse.SC_OK);
 
-                    // Convert message to JSON format
-                    HashMap<String, String> messageData = new HashMap<>();
-                    messageData.put("likes", resultSet.getString("NumberOfLikes"));
-                    messageData.put("dislikes", resultSet.getString("NumberOfDislikes"));
-
-                    String messageToSend = new Gson().toJson(messageData);
+                    String numberOfLikes = resultSet.getString("NumberOfLikes");
+                    String numberOfDislikes = resultSet.getString("NumberOfDislikes");
+                    String messageToSend = "{\"likes\":\"" + numberOfLikes + "\",\"dislikes\":\"" + numberOfDislikes + "\"}";
 
                     res.getWriter().write(messageToSend);
                 } else {

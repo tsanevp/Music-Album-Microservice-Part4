@@ -1,7 +1,6 @@
 package Client;
 
 import io.swagger.client.ApiClient;
-import io.swagger.client.ApiException;
 import io.swagger.client.ApiResponse;
 import io.swagger.client.api.LikeApi;
 
@@ -33,18 +32,20 @@ public class GetAlbumRunnable implements Runnable {
 
     @Override
     public void run() {
-        long start, end;
+        try {
+            AlbumClient.getReqWaitToStartLatch.await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        long start;
         while (AlbumClient.MAKE_GET_REQS) {
-            if (AlbumClient.albumIdsToCall.isEmpty()) {
-                continue;
-            }
-
-            String albumId = AlbumClient.albumIdsToCall.get(AlbumClient.randomInt.nextInt(AlbumClient.albumIdsToCall.size()));
-
-            start = System.currentTimeMillis();
-            getAlbumReview(albumId);
-            end = System.currentTimeMillis();
-            this.reviewGet.add(end - start);
+            try {
+                String albumId = AlbumClient.albumIdsToCall.take();
+                start = System.currentTimeMillis();
+                getAlbumReview(albumId);
+                this.reviewGet.add(System.currentTimeMillis() - start);
+            } catch (InterruptedException ignore) {}
         }
 
         AlbumClient.getReqThreadsLatch.countDown();
