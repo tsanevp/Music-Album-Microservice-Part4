@@ -33,7 +33,6 @@ public class ReviewServlet extends HttpServlet {
         if (urlPath == null || urlPath.isEmpty()) {
             res.setStatus(HttpServletResponse.SC_NOT_FOUND);
             res.getWriter().write("Missing parameters");
-            System.out.println("shit");
             return;
         }
 
@@ -43,8 +42,6 @@ public class ReviewServlet extends HttpServlet {
         if (!isUrlValid(urlParts)) {
             res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             res.getWriter().write("Invalid or missing inputs");
-            System.out.println("shit2");
-
             return;
         }
 
@@ -67,7 +64,6 @@ public class ReviewServlet extends HttpServlet {
             res.setStatus(HttpServletResponse.SC_CREATED);
             res.getWriter().write("Review sent");
         } catch (Exception e) {
-            e.printStackTrace();
             throw new RuntimeException(e);
         } finally {
             if (channel != null) {
@@ -95,6 +91,11 @@ public class ReviewServlet extends HttpServlet {
         return false;
     }
 
+    @Override
+    public void destroy() {
+        this.rabbitMQService.closeChannelPool(this.channelPool);
+    }
+
     /**
      * Enum constants that represent different review endpoints
      */
@@ -106,10 +107,5 @@ public class ReviewServlet extends HttpServlet {
         Endpoint(Pattern pattern) {
             this.pattern = pattern;
         }
-    }
-
-    @Override
-    public void destroy() {
-        this.rabbitMQService.closeChannelPool(this.channelPool);
     }
 }

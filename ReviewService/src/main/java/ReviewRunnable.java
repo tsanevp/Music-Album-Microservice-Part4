@@ -67,26 +67,12 @@ public class ReviewRunnable implements Runnable {
             try (java.sql.Connection connection = ReviewConsumer.connectionPool.getConnection()) {
                 int rowsAffected = Objects.equals(reviewType, "like") ? ReviewConsumer.reviewController.addLike(connection, albumId) : ReviewConsumer.reviewController.addDislike(connection, albumId);
 
-//                try (Jedis redisConnection = ReviewConsumer.redisConnectionPool.getResource()) {
-//                    Pipeline pipeline = redisConnection.pipelined();
-//                    if (Objects.equals(reviewType, "like")) {
-//                        pipeline.hincrBy(albumId, "NumberOfLikes", 1);
-//                    } else {
-//
-//                        pipeline.hincrBy(albumId, "NumberOfDislikes", 1);
-//                    }
-//                    pipeline.sync();
-//                } catch (Exception ignored) {}
-
+                // At the moment no implementation for like failure - not required, fire and forget
             } catch (SQLException e) {
                 e.printStackTrace();
-//                channel.basicReject(delivery.getEnvelope().getDeliveryTag(), true);
             }
-
-//            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
         } catch (Exception e) {
             e.printStackTrace();
-//            channel.basicReject(delivery.getEnvelope().getDeliveryTag(), true);
         }
     }
 }

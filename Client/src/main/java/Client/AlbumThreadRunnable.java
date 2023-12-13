@@ -60,7 +60,7 @@ public class AlbumThreadRunnable implements Runnable {
         String[] requestParameters;
 
 
-        // Perform 1000 POST & GET requests
+        // Perform 100 POST, LIKE, LIKE, DISLIKE Requests
         for (int k = 0; k < this.numReqs; k++) {
 //          // For loop to send 4 POST requests (1 album POST, 3 review POSTs - 2 likes, 1 dislike)
             for (int i = 0; i < 4; i++) {
@@ -86,39 +86,6 @@ public class AlbumThreadRunnable implements Runnable {
                     default -> this.likePost.add(currentLatency);
                 }
             }
-//            requestParameters = new String[]{"albumPost", null};
-//            start = System.currentTimeMillis();
-//            response = makeApiRequest(requestParameters);
-//            end = System.currentTimeMillis();
-//            currentLatency = end - start;
-//
-//            uuid = getPostUUID(response);
-//            this.albumPost.add(currentLatency);
-//            this.albumIds.add(uuid);
-//
-//            requestParameters = new String[]{"like", uuid};
-//            start = System.currentTimeMillis();
-//            response = makeApiRequest(requestParameters);
-//            end = System.currentTimeMillis();
-//            currentLatency = end - start;
-//
-//            this.likePost.add(currentLatency);
-//
-//            requestParameters = new String[]{"like", uuid};
-//            start = System.currentTimeMillis();
-//            response = makeApiRequest(requestParameters);
-//            end = System.currentTimeMillis();
-//            currentLatency = end - start;
-//
-//            this.likePost.add(currentLatency);
-//
-//            requestParameters = new String[]{"dislike", uuid};
-//            start = System.currentTimeMillis();
-//            response = makeApiRequest(requestParameters);
-//            end = System.currentTimeMillis();
-//            currentLatency = end - start;
-//
-//            this.dislikePost.add(currentLatency);
         }
 
         // Decrement count down latch
@@ -134,10 +101,6 @@ public class AlbumThreadRunnable implements Runnable {
         AlbumClient.likesPost.addAll(this.likePost);
         AlbumClient.dislikesPost.addAll(this.dislikePost);
         AlbumClient.albumIdsToCall.addAll(albumIds);
-        if (AlbumClient.getReqWaitToStartLatch.getCount() == 1) {
-            AlbumClient.getReqWaitToStartLatch.countDown();
-            AlbumClient.startGETReqs = System.currentTimeMillis();
-        }
     }
 
     /**

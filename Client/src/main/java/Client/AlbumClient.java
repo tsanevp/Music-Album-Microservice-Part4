@@ -17,7 +17,7 @@ public class AlbumClient {
     protected static final AtomicInteger FAILED_REQ = new AtomicInteger(0);
     protected static final AtomicInteger SUCCESSFUL_GET_REQ = new AtomicInteger(0);
     protected static final AtomicInteger FAILED_GET_REQ = new AtomicInteger(0);
-    protected static boolean MAKE_GET_REQS = true;
+    protected static boolean MAKE_GET_REQS = false;
     protected static List<Long> albumPost = Collections.synchronizedList(new ArrayList<>());
     protected static List<Long> likesPost = Collections.synchronizedList(new ArrayList<>());
     protected static List<Long> dislikesPost = Collections.synchronizedList(new ArrayList<>());
@@ -51,8 +51,9 @@ public class AlbumClient {
         // Executor service used to make continuous GET requests
         ExecutorService getReqServicePool = Executors.newFixedThreadPool(Constants.NUM_THREADS_FOR_GET_REQS);
         getReqThreadsLatch = new CountDownLatch(Constants.NUM_THREADS_FOR_GET_REQS);
-        getReqWaitToStartLatch = new CountDownLatch(1);
+        getReqWaitToStartLatch = new CountDownLatch(1); // Used to signal first thread group has completed
 
+        // Start GET req threads. They will not make reqs until first group has completed
         for (int j = 0; j < Constants.NUM_THREADS_FOR_GET_REQS; j++) {
             getReqServicePool.execute(new GetAlbumRunnable(getServerURL));
         }
@@ -60,10 +61,10 @@ public class AlbumClient {
         // Run initialization phase
         initializationPhase(servicePool, serverURL);
 
-        // Redefine countdown latch for server loading
+        // Redefine countdown latch for loading phase
         totalThreadsLatch = new CountDownLatch(maxThreads);
 
-        // Load Server
+        // Load Server phase
         start = System.currentTimeMillis();
         loadServerPhase(numThreadGroups, threadGroupSize, delay, serverURL, servicePool, getReqServicePool, getServerURL);
         end = System.currentTimeMillis();
@@ -90,6 +91,13 @@ public class AlbumClient {
 
             // Sleep for delay amount of time, converted to seconds
             sleep(delay * 1000L);
+
+            // Start get reqs after first group
+            if (i == 0) {
+                AlbumClient.getReqWaitToStartLatch.countDown();
+                AlbumClient.startGETReqs = System.currentTimeMillis();
+                AlbumClient.MAKE_GET_REQS = true;
+            }
         }
 
         // Shutdown the executor and wait for all tasks to complete
@@ -125,15 +133,17 @@ public class AlbumClient {
      * @param end             - The end time of the current phase.
      */
     protected static void printResults(int numThreadGroups, int threadGroupSize, String currentPhase, long start, long end) {
+        // Get load results for all req types
         LoadCalculations loadCalculationsAlbumsPost = new LoadCalculations(albumPost);
         LoadCalculations loadCalculationsLikesPost = new LoadCalculations(likesPost);
         LoadCalculations loadCalculationsDislikesPost = new LoadCalculations(dislikesPost);
         LoadCalculations loadCalculationsGetReviews = new LoadCalculations(reviewGet);
 
-
+        // Define format and wall time
         DecimalFormat decimalFormat = new DecimalFormat("#.##");
         double wallTime = (end - start) * 0.001;
 
+        // Overall results
         System.out.println("-----------------------------------------------------------------------------------------");
         System.out.println("-------- Printing Results For " + currentPhase + " --------");
         System.out.println("Thread Groups = " + numThreadGroups + ", Number of Threads per Group = " + threadGroupSize + ", Call per Thread = " + Constants.CALLS_PER_THREAD);
@@ -151,6 +161,7 @@ public class AlbumClient {
         System.out.println("-- Dislike POST Requests --");
         printCalculations(decimalFormat, loadCalculationsDislikesPost);
 
+        // GET review req results
         System.out.println("-------- Printing Results For GET Reviews --------");
         System.out.println("Number of Successful Requests: " + SUCCESSFUL_GET_REQ.get());
         System.out.println("Number of Failed Requests: " + FAILED_GET_REQ.get() + "\n");

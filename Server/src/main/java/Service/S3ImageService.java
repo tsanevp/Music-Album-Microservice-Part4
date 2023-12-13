@@ -1,3 +1,5 @@
+package Service;
+
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -13,11 +15,11 @@ import java.io.InputStream;
 
 import static Util.Constants.BUCKET_NAME;
 
-public class ImageClient {
+public class S3ImageService {
     private final AmazonS3 s3Client;
     private final TransferManager transferManager;
 
-    public ImageClient() {
+    public S3ImageService() {
         this.s3Client = AmazonS3ClientBuilder.standard()
                 .withRegion(Regions.US_WEST_2)
                 .build();

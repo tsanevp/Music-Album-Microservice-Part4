@@ -1,25 +1,20 @@
 import Controller.ReviewController;
 import Service.MySQLService;
-import Service.RedisService;
 import Util.Constants;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.zaxxer.hikari.HikariDataSource;
-import redis.clients.jedis.JedisPool;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ReviewConsumer {
     private final static MySQLService mySQLService = new MySQLService();
-    private final static RedisService redisService = new RedisService();
     protected static ReviewController reviewController = new ReviewController();
     protected static HikariDataSource connectionPool;
-    protected static JedisPool redisConnectionPool;
 
     public static void main(String[] argv) throws Exception {
         connectionPool = mySQLService.getConnectionPool();
-        redisConnectionPool = redisService.getConnectionPool();
 
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost(Constants.HOST);
@@ -37,10 +32,7 @@ public class ReviewConsumer {
             servicePoolDislikes.execute(new ReviewRunnable(connectionDislikes, Constants.EXCHANGE_NAME, Constants.EXCHANGE_TYPE, Constants.DISLIKE_QUEUE));
         }
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            mySQLService.close();
-            redisService.close();
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(mySQLService::close));
     }
 }
 

@@ -1,7 +1,6 @@
 import Controller.AlbumController;
 import Service.MySQLService;
 import Service.RedisService;
-import com.google.gson.Gson;
 import com.zaxxer.hikari.HikariDataSource;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -16,7 +15,6 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashMap;
 
 @WebServlet(name = "ReviewServlet", value = "/review/*")
 public class ReviewServlet extends HttpServlet {
@@ -51,6 +49,7 @@ public class ReviewServlet extends HttpServlet {
 
         String albumId = urlPath.split("/")[1];
 
+        // This is part of our experimental phase to see if cache will improve GET throughput
         try (Jedis connection = redisConnectionPool.getResource()) {
             Pipeline pipeline = connection.pipelined();
             Response<String> likesResponse = pipeline.hget(albumId, "NumberOfLikes");
@@ -69,6 +68,7 @@ public class ReviewServlet extends HttpServlet {
             res.setStatus(HttpServletResponse.SC_OK);
             res.getWriter().write(messageToSend);
         } catch (Exception e) {
+            // If cache miss, then get data from MySQL DB
             try (Connection connection = this.connectionPool.getConnection()) {
                 ResultSet resultSet = this.albumController.getAlbumProfile(connection, albumId);
 
