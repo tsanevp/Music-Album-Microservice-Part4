@@ -33,6 +33,7 @@ public class GetAlbumRunnable implements Runnable {
     @Override
     public void run() {
         try {
+            // Waits until first thread group finishes starting
             AlbumClient.getReqWaitToStartLatch.await();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);

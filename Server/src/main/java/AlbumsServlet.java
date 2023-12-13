@@ -1,6 +1,7 @@
 import Controller.AlbumController;
 import Service.MySQLService;
 import Service.RedisService;
+import Service.S3ImageService;
 import Util.Constants;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -31,6 +32,8 @@ import java.util.regex.Pattern;
         maxRequestSize = 1024 * 1024 * 100)    // 100 MB
 public class AlbumsServlet extends HttpServlet {
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private S3ImageService s3ImageService;
+
     private MySQLService mySQLService;
     private HikariDataSource connectionPool;
     private AlbumController albumController;
@@ -40,6 +43,7 @@ public class AlbumsServlet extends HttpServlet {
 
     @Override
     public void init() {
+        this.s3ImageService = new S3ImageService();
         this.albumController = new AlbumController();
         this.mySQLService = new MySQLService(Constants.MIN_MYSQL_CONNECTIONS, Constants.MAX_MYSQL_CONNECTIONS);
         this.connectionPool = this.mySQLService.getConnectionPool();
@@ -97,6 +101,7 @@ public class AlbumsServlet extends HttpServlet {
         try (Connection connection = this.connectionPool.getConnection()) {
             int rowsAffected = this.albumController.postToDatabase(connection, uuid, imageData, albumProfile);
 
+            // This is part of our experimental phase to see if cache will improve GET throughput
             try (Jedis jedisConnection = this.redisConnectionPool.getResource()) {
                 Pipeline pipeline = jedisConnection.pipelined();
                 pipeline.hset(uuid, "NumberOfLikes", "0");
@@ -104,9 +109,13 @@ public class AlbumsServlet extends HttpServlet {
                 pipeline.expire(uuid, Constants.REDIS_EXPIRE_TIME);
                 pipeline.sync();
             } catch (Exception ignored) {
+                // Try to store in cache, if it fails, do nothing since it is stored in main MySQL DB
             }
 
             if (rowsAffected > 0) {
+                // Upload image to S3 cloud object storage
+                this.s3ImageService.uploadImage(image, uuid);
+
                 res.setStatus(HttpServletResponse.SC_OK);
                 res.getWriter().write(imageData);
             } else {
@@ -191,6 +200,7 @@ public class AlbumsServlet extends HttpServlet {
 
     @Override
     public void destroy() {
+        this.s3ImageService.shutDown();
         this.mySQLService.close();
         this.redisService.close();
     }
